@@ -4,10 +4,11 @@ Gyerek zar es ido ha tanult
 ## Kredit — prototípus
 
 `kredit.html` — egyfájlos, vanilla JS prototípus. Nincs build lépés, nincs
-framework: nyisd meg böngészőben, és megy. Mobilra tervezve.
+framework, **nincs API és nincs hálózati függés**: nyisd meg böngészőben, és megy.
+Mobilra tervezve.
 
 **Az alapötlet:** a játékidőt ki kell tanulni. Reggel beállítasz egy alapkeretet,
-efölé csak úgy jutsz, hogy lefotózod a tanult oldalt, az app kikérdez belőle, és a
+efölé csak úgy jutsz, hogy leírod, amit tanultál, az app kikérdez belőle, és a
 **helyes válaszokért** kapsz plusz perceket. Játék közben ketyeg az idő, nullánál
 a játékok zárolva.
 
@@ -24,13 +25,35 @@ szabályok a szülő rekordjában élnek. Írásnál mindkét eszköz csak a saj
 menti (szülő: `settings`/`timetable`/`games`, gyerek: `days`/`tests`/`lastTestAsk`),
 friss visszaolvasás után, hogy ne írják felül egymást.
 
+### A kikérdező — helyben fut
+
+Nincs fotó és nincs modellhívás. A gyerek leírja (vagy a billentyűzet mikrofonjával
+bediktálja), amit tanult, legalább 200 karakterben, és az app ebből készít kérdést:
+
+1. Mondatokra bontás, majd kulcsszó-kiemelés mondatonként — szám, tulajdonnév,
+   hosszú tartalmas szó, ebben a sorrendben.
+2. **Kiegészítős kérdés:** a kulcsszó helyére `_____` kerül.
+3. **Mondatválasztós kérdés:** minden harmadik körben négy majdnem azonos mondat,
+   háromban ki van cserélve egy szó.
+4. A zavaró válaszok ugyanannak a szövegnek a többi kulcsszavából jönnek, azonos
+   fajtából, lehetőleg **azonos végződéssel** — hogy ne a magyar toldalék árulja el
+   a jó megoldást —, és soha nem olyan szó, ami a látható mondatban már ott áll.
+5. A kérdések a szöveg egészét lefedik, nem csak az elejét.
+6. A téma megnevezése szótő-közelítéssel (a szó első 6 karaktere) áll elő, mert a
+   magyar toldalékol: „körforgás" és „körforgásának" ugyanaz a téma.
+
+Cserébe ez **felidézést mér, nem megértést** — ezt egy nyelvi modell tudná, az meg
+API-t jelentene. A leírás viszont maga is tanulás, úgyhogy a hurok nem üresedik ki.
+
 ### Csalás ellen
 
-- A kikérdezés alatt a kép nem látszik.
+- A leírt szöveg nem látszik a kikérdezés alatt.
 - Kérdésenként visszaszámláló (alapból 25 mp); lejáratkor a kérdés rossz.
 - Nincs visszalépés, a válasz végleges.
-- `perc = jó válaszok × perCorrect`, de `minCorrect` alatt **nulla** — így nem éri
-  meg a legüresebb oldalt lefotózni. Napi plafon: `cap`.
+- `perc = jó válaszok × perCorrect`, de `minCorrect` alatt **nulla**. Napi plafon: `cap`.
+- **Ugyanaz a szöveg naponta egyszer fizet** — a napló őrzi a szöveg ujjlenyomatát.
+- A napló rögzíti a szöveg hosszát, és a szülői nézetben az első 160 karakterét is,
+  így a bemásolt halandzsa kilóg.
 - A sikertelen kör is bekerül a naplóba.
 
 ### Amit tudni kell a korlátairól
@@ -38,22 +61,20 @@ friss visszaolvasás után, hogy ne írják felül egymást.
 - **A böngésző nem tud játékot blokkolni.** Élesben ez natív Android réteg:
   UsageStatsManager + overlay + foreground service.
 - **A párosítás itt megosztott tárolón megy.** Élesben Firebase Auth + Firestore.
-- Ha nincs `window.storage`, a fájl `localStorage`-ra esik vissza, hogy önmagában
-  is futtatható legyen. Ekkor a "megosztott" tár is csak az adott eszközön él,
-  vagyis a szülő–gyerek párosítás egy gépen belül demózható.
-- **API kulcs sehol nincs a kliensben** — se beégetve, se beírható mezőben. A
-  kikérdező kulcs nélkül hívja az Anthropic API-t, amit a gazdakörnyezet kezel.
-  Élesben ugyanez a felállás: a kulcs a backenden marad, a telefon sosem látja.
-- Ezért a fotóból csak az éles környezet tud kérdést csinálni. Ha a fájlt csak
-  megnyitod, a hívás elbukik, és az app felkínál egy **demó kört** (helyben
-  generált kérdések), hogy a teljes hurok — óra, nincs visszalépés, pontozás,
-  jutalom, napló — kipróbálható legyen. A demó kör a naplóban jelölve van.
+- Ha nincs `window.storage`, a fájl `localStorage`-ra esik vissza. Ekkor a
+  „megosztott" tár is csak az adott eszközön él, vagyis a szülő–gyerek párosítás
+  egy gépen belül demózható.
+- Az egyetlen külső kérés a Google Fonts, tisztán kozmetikai; ha nem tölt be,
+  rendszerbetűkkel fut tovább.
 
 ### Teszt
 
-Fejnélküli füstteszt Playwrighttal, 55 ellenőrzés (nap indítása, jutalom-
-számolás, minimum-szabály, napló, játékóra, PIN, párosítás, fülek szerepenként,
-offline demó kör):
+Fejnélküli füstteszt Playwrighttal, 50 ellenőrzés — a generátor önmagában
+(4 különböző válasz, a jó válasz a szövegből jön, a zavaró válasz nem látszik a
+mondatban — 40 lefutáson át ellenőrizve), a jutalomszámolás, a minimum-szabály, az
+ismételt szöveg blokkolása, a napló, a játékóra percenkénti fogyása, a PIN-zár
+újratöltés után, a párosítás, a szerepenkénti fülek, és egy blokk, ami **minden
+külső kérést eldob**, hogy bizonyítsa: a teljes kör hálózat nélkül is végigmegy.
 
 ```
 npx http-server -p 8099 -s .

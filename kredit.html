@@ -83,7 +83,7 @@ input,select,textarea{
   width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
   border-radius:var(--r-sm);padding:12px;font-family:var(--body);font-size:16px
 }
-input[type=file]{padding:10px;font-size:13px;color:var(--muted)}
+textarea{resize:vertical;min-height:130px;line-height:1.5}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .pill{display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
@@ -195,7 +195,7 @@ let fam    = null;      // család- vagy szólórekord
 let tab    = 'today';
 let unlocked = false;   // Szabályok fül PIN-je feloldva ebben a munkamenetben
 let flash  = null;      // {kind:'err'|'note', text}
-let study  = { subject:'', custom:'', file:null, busy:false, error:'' };
+let study  = { subject:'', custom:'', text:'', error:'' };
 let quiz   = null;      // {subject, topic, qs, i, picked, correct, done, t, timer}
 let play   = null;      // {game, startedAt, budget, timer}
 
@@ -432,7 +432,7 @@ function segHtml(left, total){
   for(let i=0; i<20; i++) s += '<i class="'+(i<f ? (low?'on low':'on') : '')+'"></i>';
   return s + '</div>';
 }
-function sessionHtml(s){
+function sessionHtml(s, full){
   if(s.type === 'play'){
     return '<div class="item"><span class="t">'+esc(s.time)+'</span><span class="grow">Játék · '+esc(s.game)+'</span>'+
            '<span class="m play">&minus;'+(s.minutes||0)+'</span></div>';
@@ -440,8 +440,10 @@ function sessionHtml(s){
   const cls = (s.minutes||0) > 0 ? 'plus' : 'zero';
   return '<div class="item"><span class="t">'+esc(s.time)+'</span><span class="grow">'+esc(s.subject)+
          (s.topic ? ' <span class="muted">· '+esc(s.topic)+'</span>' : '')+
-         (s.demo ? ' <span class="pill">demó</span>' : '')+
-         '<br><span class="tiny muted">'+(s.correct||0)+'/'+(s.tot||0)+' jó válasz</span></span>'+
+         '<br><span class="tiny muted">'+(s.correct||0)+'/'+(s.tot||0)+' jó válasz'+
+         (s.chars ? ' &middot; '+s.chars+' karakter' : '')+'</span>'+
+         (full && s.excerpt ? '<div class="tiny muted" style="margin-top:5px;padding-left:9px;border-left:2px solid var(--line)">&bdquo;'+esc(s.excerpt)+'&hellip;&rdquo;</div>' : '')+
+         '</span>'+
          '<span class="m '+cls+'">'+((s.minutes||0) > 0 ? '+'+s.minutes : '0')+'</span></div>';
 }
 function screenToday(){
@@ -483,7 +485,7 @@ function screenToday(){
   const ss = (d.sessions||[]).slice().reverse();
   h += '<div class="card"><h3>Mai napló</h3>'+
     (ss.length ? ss.map(sessionHtml).join('')
-               : '<p class="muted small" style="margin:0">Még üres. Fotózz le egy oldalt a Tanulás fülön, és nőni fog a keret.</p>')+
+               : '<p class="muted small" style="margin:0">Még üres. Írd le a Tanulás fülön, amit tanultál, és nőni fog a keret.</p>')+
   '</div>';
   return h;
 }
@@ -491,12 +493,26 @@ function screenToday(){
 /* =========================================================================
    TANULÁS
    ========================================================================= */
-const MIMES = ['image/jpeg','image/png','image/gif','image/webp'];
+const MIN_CHARS = 200;
+
 function subjectChoices(){
-  const day = nextSchoolDay();
-  const list = (fam.timetable[day] || []).slice();
+  const d = nextSchoolDay();
+  const list = (fam.timetable[d] || []).slice();
   upcomingTests().forEach(t => { if(list.indexOf(t.subject) < 0) list.push(t.subject); });
   return list.filter(Boolean);
+}
+function currentSubject(){
+  return study.subject === '__other' ? study.custom.trim() : study.subject;
+}
+function hashText(t){
+  const x = String(t).toLowerCase().replace(/\s+/g,' ').trim();
+  let h = 5381;
+  for(let i=0; i<x.length; i++) h = ((h*33) ^ x.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+function studiedToday(hash){
+  const d = day();
+  return !!d && (d.sessions||[]).some(s => s.type === 'study' && s.hash === hash);
 }
 function screenStudy(){
   const d = day();
@@ -505,98 +521,171 @@ function screenStudy(){
   const room = Math.max(0, fam.settings.cap - f.earned);
   const chosen = study.subject;
   const opts = subjectChoices();
+  const chars = study.text.trim().length;
   let h = '';
-  if(study.error) h += '<div class="err" style="margin-bottom:12px">'+esc(study.error)+
-    (study.offline ? '<button class="btn" id="demo" style="margin-top:12px">Kipróbálom demó kérdésekkel</button>' : '')+'</div>';
+  if(study.error) h += '<div class="err" style="margin-bottom:12px">'+esc(study.error)+'</div>';
 
   h += '<div class="card"><h3>Miből tanulsz?</h3><div class="row wrap">'+
-    opts.map(s => '<button class="btn small'+(chosen===s?' primary':'')+'" data-sub="'+esc(s)+'">'+esc(s)+'</button>').join('')+
+    opts.map(x => '<button class="btn small'+(chosen===x?' primary':'')+'" data-sub="'+esc(x)+'">'+esc(x)+'</button>').join('')+
     '<button class="btn small'+(chosen==='__other'?' primary':'')+'" data-sub="__other">Egyéb&hellip;</button></div>'+
     (opts.length ? '' : '<p class="tiny muted" style="margin:10px 0 0">Nincs órarend rögzítve, ezért csak az Egyéb van. A szabályoknál lehet órarendet megadni.</p>')+
     (chosen === '__other' ? '<div style="margin-top:10px"><label class="f" for="sub-custom">Tantárgy neve</label><input id="sub-custom" value="'+esc(study.custom)+'" placeholder="pl. Földrajz" autocomplete="off"></div>' : '')+
   '</div>';
 
-  h += '<div class="card"><h3>Az oldal, amit tanulsz</h3>'+
-    '<input type="file" id="photo" accept="image/*" capture="environment">'+
-    (study.b64 ? '<div class="row" style="margin-top:12px"><img src="data:'+esc(study.mime)+';base64,'+study.b64+'" alt="A kiválasztott oldal előnézete" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><span class="small muted grow">Megvan. A kikérdezés alatt a képet nem fogod látni.</span></div>' : '')+
+  h += '<div class="card"><h3>Amit tanultál</h3>'+
+    '<p class="tiny muted" style="margin:-4px 0 10px">Írd le a lényeget teljes mondatokban &mdash; a saját szavaiddal, vagy másold ki a könyvből. A telefon billentyűzetén a mikrofonnal be is diktálhatod.</p>'+
+    '<textarea id="note" rows="8" placeholder="A víz a Nap hatására elpárolog a tengerekből. A felszálló pára a magasban lehűl és felhővé sűrűsödik&hellip;">'+esc(study.text)+'</textarea>'+
+    '<div class="spread" style="margin-top:10px"><span class="tiny muted" id="cc">'+chars+' karakter</span>'+
+    '<span class="pill'+(chars>=MIN_CHARS?' ok':'')+'" id="cpill">'+(chars>=MIN_CHARS?'mehet':'még kell '+(MIN_CHARS-chars))+'</span></div>'+
   '</div>';
 
-  const ready = !!study.b64 && !!currentSubject();
-  h += '<button class="btn primary" id="gen"'+(ready && !study.busy ? '' : ' disabled')+'>'+
-       (study.busy ? '<span class="spin"></span>Kérdések készítése&hellip;' : 'Kérdések készítése')+'</button>';
+  const ready = chars >= MIN_CHARS && !!currentSubject();
+  h += '<button class="btn primary" id="gen"'+(ready ? '' : ' disabled')+'>Kérdések készítése</button>';
 
   h += '<div class="card quiet" style="margin-top:14px"><h3>Mi jár érte</h3>'+
     '<p class="small muted" style="margin:0">Minden jó válasz <b>'+fam.settings.perCorrect+'</b> perc. '+
     'Legalább <b>'+fam.settings.minCorrect+'</b> jó válasz kell, alatta nulla. '+
     'Ma még <b>'+room+'</b> perc fér bele a napi plafonba.<br>'+
-    'Kérdésenként '+fam.settings.secs+' másodperc, visszalépés nincs.</p></div>';
+    'Kérdésenként '+fam.settings.secs+' másodperc, visszalépés nincs. Ugyanazt a szöveget naponta egyszer kérdezem ki.</p></div>';
   return h;
 }
-function currentSubject(){
-  return study.subject === '__other' ? study.custom.trim() : study.subject;
-}
-function readFile(file){
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res(String(r.result).split(',')[1] || '');
-    r.onerror = () => rej(new Error('read'));
-    r.readAsDataURL(file);
-  });
-}
-async function makeQuestions(b64, mime, subject, n){
-  const text =
-    'Ez egy '+subject+' tankönyv- vagy füzetoldal fotója. Készíts '+n+' feleletválasztós kérdést KIZÁRÓLAG az oldalon szereplő tartalomból, magyarul. A kérdések a megértést mérjék, ne szó szerinti visszakeresést. Minden kérdéshez 4 válasz, pontosan egy jó, a rosszak legyenek hihetőek.\n'+
-    'Csak JSON-t adj vissza, semmi mást, semmi markdown:\n'+
-    '{"tema":"az oldal témája 3-5 szóban","kerdesek":[{"k":"kérdés","v":["a","b","c","d"],"j":0,"m":"egymondatos magyarázat"}]}';
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({
-      model:'claude-sonnet-4-6', max_tokens:1000,
-      messages:[{role:'user', content:[
-        {type:'image', source:{type:'base64', media_type:mime, data:b64}},
-        {type:'text', text}
-      ]}]
-    })
-  });
-  if(!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
-  const raw = (data.content || []).filter(b => b && b.type === 'text').map(b => b.text).join('');
-  const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-  const a = cleaned.indexOf('{'), z = cleaned.lastIndexOf('}');
-  if(a < 0 || z <= a) throw new Error('parse');
-  const obj = JSON.parse(cleaned.slice(a, z + 1));
-  const qs = (obj.kerdesek || []).filter(q =>
-    q && typeof q.k === 'string' && q.k.trim() &&
-    Array.isArray(q.v) && q.v.length === 4 &&
-    Number.isInteger(q.j) && q.j >= 0 && q.j < 4
-  ).slice(0, n);
-  if(!qs.length) throw new Error('empty');
-  return {topic: String(obj.tema || '').trim().slice(0, 60), qs};
-}
+/* =========================================================================
+   KÉRDÉSGENERÁTOR — helyben fut, se hálózat, se API
+   A szövegből kulcsszavakat emel ki, azokat lyukasztja ki, és a zavaró
+   válaszokat ugyanannak a szövegnek a többi kulcsszavából veszi.
+   ========================================================================= */
+const STOP = new Set(('a az és s hogy nem is de meg mint csak már még vagy ez ezt ezek azt ha mert hát van vannak volt voltak lesz lehet kell való egy két több minden ilyen olyan szerint között közötti alatt felett után előtt során miatt által nélkül együtt illetve azonban tehát ezért így úgy akkor amikor amely amelyek amelyik amit ami aki akik ahol ahogy míg sem vagyis például stb valamint mindig soha ugyanakkor emiatt ennek annak ebben abban ezzel azzal erre arra ehhez ahhoz náluk nálunk pedig hanem különböző általában szokott lehetnek nagyon ugyanis vagyunk vissza tovább ismét újra keresztül ugyanaz mindegyik néhány körülbelül nagyjából egyébként hasonlóan elsősorban természetesen gyakran sokszor mindenütt később korábban azonnal hirtelen végül először másodszor viszont ellenben ráadásul kizárólag legalább legfeljebb egyaránt egyúttal közben eközben amennyiben mindössze csupán szinte majdnem folyamatosan általában mindenki senki semmi valami nagyobb kisebb legnagyobb legkisebb szoktak jelenti nevezzük mondjuk láthatjuk figyeljük').split(' '));
 
-/* Demó kérdések: ha a kikérdező nem érhető el (pl. a fájlt csak megnyitottad),
-   ezzel a teljes kör kipróbálható. Nem az oldalról szólnak, ezért jelölve vannak. */
-function makeDemoQuestions(n){
-  const qs = [];
-  for(let i=0; i<n; i++){
-    const a = 2 + Math.floor(Math.random()*9), b = 2 + Math.floor(Math.random()*9);
-    const good = a*b;
-    const set = new Set([good]);
-    while(set.size < 4){ const d = good + (Math.floor(Math.random()*11) - 5); if(d > 0) set.add(d); }
-    const v = Array.from(set).sort(() => Math.random() - .5);
-    qs.push({k:'Mennyi '+a+' \u00d7 '+b+'?', v:v.map(String), j:v.indexOf(good), m:a+' \u00d7 '+b+' = '+good+'.'});
+function termsOf(sentence){
+  const re = /[0-9A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű][0-9A-Za-zÁÉÍÓÖŐÚÜŰáéíóöőúüű-]*/g;
+  const out = []; let m, first = true;
+  while((m = re.exec(sentence))){
+    const w = m[0];
+    let kind = null;
+    if(/^\d[\d.,:/-]*$/.test(w) && w.length >= 2) kind = 'num';
+    else if(!first && /^[A-ZÁÉÍÓÖŐÚÜŰ]/.test(w) && w.length >= 4) kind = 'prop';
+    else if(w.length >= 6 && !STOP.has(w.toLowerCase())) kind = 'word';
+    if(kind) out.push({w, at:m.index, kind});
+    first = false;
   }
-  return qs;
+  return out;
+}
+function splitSentences(text){
+  return String(text)
+    .replace(/[ \t]+/g, ' ')
+    .replace(/([.!?…])\s+/g, '$1\n')
+    .split(/\n+/)
+    .map(x => x.replace(/^[\s\-•*–]+/, '').trim())
+    .filter(x => x.length >= 35 && x.length <= 260 && x.split(' ').length >= 6);
+}
+/* Zavaró válaszok: azonos fajta, lehetőleg azonos végződés, hasonló hossz —
+   hogy ne a toldalék árulja el a jó megoldást. */
+function pickDistractors(pool, answer, kind, k, sentence){
+  const a = answer.toLowerCase();
+  const seenIn = (sentence || '').toLowerCase();
+  const tail = x => x.slice(-2).toLowerCase();
+  /* ami már ott áll a látható mondatban, az elárulja magát */
+  const usable = pool.filter(t => {
+    const w = t.w.toLowerCase();
+    return w !== a && seenIn.indexOf(w) < 0;
+  });
+  const base = usable.length >= k ? usable : pool.filter(t => t.w.toLowerCase() !== a);
+  const same = base.filter(t => t.kind === kind);
+  const src  = same.length >= k ? same : base;
+  const scored = src.map(t => ({
+    w: t.w,
+    s: (tail(t.w) === tail(answer) ? 0 : 2) + Math.abs(t.w.length - answer.length)/4 + Math.random()*0.9
+  })).sort((x,y) => x.s - y.s);
+  const out = [], seen = new Set([a]);
+  for(const c of scored){
+    const key = c.w.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key); out.push(c.w);
+    if(out.length === k) break;
+  }
+  return out;
+}
+function shuffled(arr){
+  const a = arr.slice();
+  for(let i=a.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+function topicOf(sentences){
+  /* A magyar toldalékol, ezért a szó eleje szerint csoportosítunk:
+     "körforgás" és "körforgásának" ugyanaz a téma. */
+  const groups = new Map();
+  sentences.forEach(x => termsOf(x).forEach(t => {
+    if(t.kind === 'num') return;
+    const stem = t.w.toLowerCase().slice(0,6);
+    const g = groups.get(stem) || {n:0, label:t.w};
+    g.n++;
+    if(t.w.length < g.label.length) g.label = t.w;
+    groups.set(stem, g);
+  }));
+  const top = Array.from(groups.values())
+    .filter(g => g.n >= 2)
+    .sort((a,b) => b.n - a.n || b.label.length - a.label.length)
+    .slice(0,3).map(g => g.label.toLowerCase());
+  if(top.length >= 2) return top.join(', ');
+
+  const first = (sentences[0] || '').trim();
+  if(first.length <= 48) return first.replace(/[.!?…]+$/,'') || 'jegyzet';
+  const cut = first.slice(0,48);
+  return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+}
+
+function generateQuestions(text, n){
+  const sentences = splitSentences(text);
+  const pool = [], seen = new Set();
+  const per = sentences.map(x => {
+    const t = termsOf(x);
+    t.forEach(one => {
+      const k = one.w.toLowerCase();
+      if(seen.has(k)) return;
+      seen.add(k); pool.push(one);
+    });
+    return t;
+  });
+  const usable = [];
+  sentences.forEach((x, i) => { if(per[i].length) usable.push(i); });
+  if(sentences.length < 3 || pool.length < 10 || usable.length < 3) throw new Error('short');
+
+  /* a szöveg egészét fedjük le, ne csak az elejét */
+  const step = Math.max(1, Math.floor(usable.length / n));
+  const chosen = [];
+  for(let i=0; i<usable.length && chosen.length < n; i += step) chosen.push(usable[i]);
+  for(let i=0; i<usable.length && chosen.length < n; i++) if(chosen.indexOf(usable[i]) < 0) chosen.push(usable[i]);
+
+  const rank = {num:0, prop:1, word:2};
+  const qs = [];
+  chosen.forEach((si, idx) => {
+    const sentence = sentences[si];
+    const t = per[si].slice().sort((a,b) => rank[a.kind] - rank[b.kind] || b.w.length - a.w.length)[0];
+    const d = pickDistractors(pool, t.w, t.kind, 3, sentence);
+    if(d.length < 3) return;
+    const blanked = sentence.slice(0, t.at) + '_____' + sentence.slice(t.at + t.w.length);
+
+    /* minden harmadik kérdés mondatválasztós, ha elég rövid a mondat */
+    if(idx % 3 === 2 && sentence.length <= 130){
+      const wrong = d.map(w => sentence.slice(0, t.at) + w + sentence.slice(t.at + t.w.length));
+      const v = shuffled([sentence].concat(wrong));
+      qs.push({h:'', k:'Melyik mondat szerepelt így a szövegben?', v, j:v.indexOf(sentence), m:'A többiben egy szó ki lett cserélve.'});
+    }else{
+      const v = shuffled([t.w].concat(d));
+      qs.push({h:'Egészítsd ki', k:'„'+blanked+'”', v, j:v.indexOf(t.w), m:'A szövegben ez állt: '+t.w+'.'});
+    }
+  });
+  if(qs.length < 3) throw new Error('short');
+  return {topic: topicOf(sentences), qs: qs.slice(0, n)};
 }
 
 /* =========================================================================
    KIKÉRDEZÉS — a kép nem látszik, óra ketyeg, visszalépés nincs
    ========================================================================= */
-function startQuiz(topic, qs, subject, demo){
-  quiz = {subject, topic, qs, i:0, picked:null, correct:0, done:false, demo:!!demo, left:fam.settings.secs, timer:null};
-  study.b64 = null; study.mime = null; study.file = null;
+function startQuiz(topic, qs, subject, meta){
+  quiz = {subject, topic, qs, i:0, picked:null, correct:0, done:false, meta:meta || {}, left:fam.settings.secs, timer:null};
+  study.text = '';
   render();
 }
 function stopTimer(){ if(quiz && quiz.timer){ clearInterval(quiz.timer); quiz.timer = null; } }
@@ -637,7 +726,9 @@ async function finishQuiz(){
   minutes = Math.min(minutes, room);
   d.earned = (d.earned || 0) + minutes;
   d.sessions = d.sessions || [];
-  d.sessions.push({type:'study', subject:quiz.subject, topic:quiz.topic, correct:quiz.correct, tot:quiz.qs.length, minutes, time:hhmm(), demo:quiz.demo || undefined});
+  d.sessions.push({type:'study', subject:quiz.subject, topic:quiz.topic, correct:quiz.correct,
+                   tot:quiz.qs.length, minutes, time:hhmm(),
+                   hash:quiz.meta.hash, chars:quiz.meta.chars, excerpt:quiz.meta.excerpt});
   quiz.done = true; quiz.gained = minutes; quiz.capped = (quiz.correct >= s.minCorrect && minutes < quiz.correct * s.perCorrect);
   await saveFam({days: fam.days});
   render();
@@ -650,8 +741,7 @@ function screenQuiz(){
       '<h2>'+(ok ? 'Megvan a plusz idő' : 'Ez most nem jött össze')+'</h2>'+
       '<p class="num" style="font-size:64px;color:'+(ok?'var(--ok)':'var(--bad)')+';margin:10px 0 4px">'+(ok?'+'+quiz.gained:'0')+'</p>'+
       '<p class="muted small">'+quiz.correct+'/'+quiz.qs.length+' jó válasz &middot; '+esc(quiz.topic || quiz.subject)+'</p>'+
-      (quiz.demo ? '<p class="tiny muted">Ez demó kör volt, nem az oldaladról. A naplóban jelölve.</p>' : '')+
-      (ok ? '' : '<p class="small" style="margin-top:10px">Legalább '+s.minCorrect+' jó válasz kell. Olvasd át még egyszer az oldalt, és fotózd le újra.</p>')+
+      (ok ? '' : '<p class="small" style="margin-top:10px">Legalább '+s.minCorrect+' jó válasz kell. Olvasd át még egyszer az anyagot, és írd le újra a lényeget.</p>')+
       (quiz.capped ? '<p class="tiny muted">A napi plafont elérted, ezért kevesebb jött be.</p>' : '')+
       '<p class="tiny muted">Ez a kör bekerült a naplóba.</p>'+
       '<div class="row" style="margin-top:14px"><button class="btn grow" id="q-again">Új oldal</button><button class="btn primary grow" id="q-today">Vissza a Ma-ra</button></div>'+
@@ -663,6 +753,7 @@ function screenQuiz(){
     '<div class="qhead"><span class="pill">'+(quiz.i+1)+' / '+quiz.qs.length+'</span>'+
     '<span class="pill fuel" id="tleft">'+quiz.left+' mp</span></div>'+
     '<div class="tbar"><i id="tbar-i"></i></div>'+
+    (q.h ? '<p class="tiny muted" style="margin:14px 0 -8px;letter-spacing:.08em;text-transform:uppercase">'+esc(q.h)+'</p>' : '')+
     '<p class="q">'+esc(q.k)+'</p>';
   const letters = ['A','B','C','D'];
   q.v.forEach((v, i) => {
@@ -772,7 +863,7 @@ function screenPlay(){
       '</div>').join('');
   }
   h += '</div>';
-  if(f.left <= 0) h += '<div class="card quiet center"><h2>Elfogyott a keret</h2><p class="muted small" style="margin:0">Fotózz le egy oldalt a Tanulás fülön. Minden jó válasz '+fam.settings.perCorrect+' perc.</p></div>';
+  if(f.left <= 0) h += '<div class="card quiet center"><h2>Elfogyott a keret</h2><p class="muted small" style="margin:0">Írd le a Tanulás fülön, amit tanultál. Minden jó válasz '+fam.settings.perCorrect+' perc.</p></div>';
   return h + note;
 }
 
@@ -790,7 +881,7 @@ function logHtml(){
     return '<div class="card"><div class="spread"><h2>'+niceDate(k)+'</h2>'+
       '<span><span class="pill fuel">'+(d.played||0)+' perc játék</span> <span class="pill ok">+'+studyMin+'</span></span></div>'+
       '<p class="tiny muted" style="margin:6px 0 10px">alap '+(d.base||0)+' &middot; kitanult '+(d.earned||0)+' &middot; maradt '+Math.max(0,(d.base||0)+(d.earned||0)-(d.played||0))+'</p>'+
-      (ss.length ? ss.map(sessionHtml).join('') : '<p class="muted small" style="margin:0">Nem történt semmi.</p>')+
+      (ss.length ? ss.map(x => sessionHtml(x, true)).join('') : '<p class="muted small" style="margin:0">Nem történt semmi.</p>')+
     '</div>';
   });
   return rows.join('');
@@ -838,7 +929,7 @@ function screenRules(){
     numField('qCount','Kérdés / kör', s.qCount)+
     numField('secs','Másodperc / kérdés', s.secs)+
   '</div><button class="btn primary" id="save-set" style="margin-top:12px">Szabályok mentése</button>'+
-  '<p class="tiny muted" style="margin:10px 0 0">A minimum alatti körért nulla perc jár, így nem éri meg üres oldalt fotózni.</p></div>';
+  '<p class="tiny muted" style="margin:10px 0 0">A minimum alatti körért nulla perc jár. Ugyanazt a szöveget naponta egyszer kérdezem ki.</p></div>';
 
   h += '<div class="card"><h3>Órarend</h3><p class="tiny muted" style="margin:-4px 0 10px">Tantárgyak vesszővel. Ebből ajánlom fel a tanulnivalót.</p>'+
     [[1,'Hétfő'],[2,'Kedd'],[3,'Szerda'],[4,'Csütörtök'],[5,'Péntek']].map(([n,label]) =>
@@ -896,48 +987,43 @@ function bind(){
   document.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => {
     study.subject = b.dataset.sub; study.error = ''; render();
   });
-  const custom = document.getElementById('sub-custom');
-  if(custom){
-    custom.oninput = () => {
-      study.custom = custom.value;
-      const g = document.getElementById('gen');
-      if(g) g.disabled = !(study.b64 && currentSubject());
-    };
+  function syncGen(){
+    const chars = study.text.trim().length;
+    const cc = document.getElementById('cc');
+    const pill = document.getElementById('cpill');
+    const g = document.getElementById('gen');
+    if(cc) cc.textContent = chars + ' karakter';
+    if(pill){
+      const ok = chars >= MIN_CHARS;
+      pill.className = 'pill' + (ok ? ' ok' : '');
+      pill.textContent = ok ? 'mehet' : 'még kell ' + (MIN_CHARS - chars);
+    }
+    if(g) g.disabled = !(chars >= MIN_CHARS && currentSubject());
   }
-  on('photo','onchange', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if(!file) return;
-    if(MIMES.indexOf(file.type) < 0){
-      study.error = 'Ezt a képformátumot nem tudom feldolgozni. Készíts JPG vagy PNG fotót.';
-      study.b64 = null; render(); return;
+  const custom = document.getElementById('sub-custom');
+  if(custom) custom.oninput = () => { study.custom = custom.value; syncGen(); };
+  const note = document.getElementById('note');
+  if(note) note.oninput = () => { study.text = note.value; syncGen(); };
+
+  on('gen','onclick', () => {
+    const subject = currentSubject();
+    const text = study.text.trim();
+    if(!subject || text.length < MIN_CHARS) return;
+    const hash = hashText(text);
+    if(studiedToday(hash)){
+      study.error = 'Ezt a szöveget ma már kikérdeztem. Írj le egy másik részt az anyagból.';
+      render(); return;
     }
     try{
-      study.b64 = await readFile(file);
-      study.mime = file.type; study.error = '';
-    }catch(err){ study.error = 'Nem sikerült beolvasni a fotót. Próbáld újra.'; study.b64 = null; }
-    render();
-  });
-  on('gen','onclick', async () => {
-    const subject = currentSubject();
-    if(!subject || !study.b64) return;
-    study.busy = true; study.error = ''; render();
-    try{
-      const out = await makeQuestions(study.b64, study.mime, subject, fam.settings.qCount);
-      study.busy = false; study.offline = false;
-      startQuiz(out.topic, out.qs, subject);
+      const out = generateQuestions(text, fam.settings.qCount);
+      study.error = '';
+      startQuiz(out.topic, out.qs, subject, {hash, chars:text.length, excerpt:text.slice(0,160)});
     }catch(err){
-      console.error(err);
-      study.busy = false;
-      study.offline = /HTTP|Failed|NetworkError|fetch|Load failed/i.test(String(err && err.message));
-      study.error = study.offline
-        ? 'Nem érte el a kikérdezőt. Ez akkor is előfordul, ha a fájlt csak simán megnyitottad \u2014 a fotóból kérdést csak az éles környezet tud csinálni.'
-        : 'A fotó nem volt olvasható. Készíts élesebb képet, jó fényben, hogy az egész oldal beleférjen, és próbáld újra.';
+      study.error = String(err && err.message) === 'short'
+        ? 'Ebből még nem tudok kérdezni. Írj legalább három teljes mondatot, ponttal lezárva, és legyen benne elég konkrétum — név, évszám, szakszó.'
+        : 'Nem sikerült kérdést csinálni ebből. Írd le mondatokban, ne csak felsorolásként.';
       render();
     }
-  });
-
-  on('demo','onclick', () => {
-    startQuiz('demó kérdések', makeDemoQuestions(fam.settings.qCount), currentSubject() || 'Demó', true);
   });
 
   /* --- Kikérdezés --- */
