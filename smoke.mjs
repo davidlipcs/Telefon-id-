@@ -157,6 +157,44 @@ async function newPage(){
   await ctx.close();
 }
 
+/* ---------- 3. OFFLINE: demó kör, ha a kikérdező nem érhető el ---------- */
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  page.on('pageerror', e => { log.push(' FAIL page error: '+e.message); process.exitCode = 1; });
+  await page.addInitScript(() => {
+    const real = window.fetch;
+    window.fetch = (u, o) => String(u).includes('api.anthropic.com')
+      ? Promise.reject(new TypeError('Failed to fetch')) : real(u, o);
+  });
+  await page.goto(URL);
+  await page.click('#ob-solo');
+  await page.click('#startday');
+  await page.click('#tabs button[data-tab=study]');
+  await page.click('[data-sub="__other"]');
+  await page.fill('#sub-custom','Matek');
+  await page.setInputFiles('#photo', {name:'o.png', mimeType:'image/png', buffer:PNG});
+  await page.click('#gen');
+  await page.waitForSelector('.err');
+  ok('offline: érthető hibaüzenet', (await page.locator('.err').innerText()).includes('Nem érte el a kikérdezőt'));
+  ok('offline: van demó kiút', await page.locator('#demo').isVisible());
+  await page.click('#demo');
+  await page.waitForSelector('.q');
+  ok('demó: 6 kérdés indul', (await page.locator('.qhead .pill').first().innerText()).includes('/ 6'));
+  for(let i=0;i<6;i++){
+    const j = await page.evaluate(() => quiz.qs[quiz.i].j);
+    await page.locator(`[data-opt="${j}"]`).click();
+    await page.click('#q-next');
+  }
+  const res = await page.locator('.card.center').innerText();
+  ok('demó: 6/6 → +18 perc', res.includes('+18') && res.includes('6/6'));
+  ok('demó: az eredmény jelöli, hogy demó', res.includes('demó kör volt'));
+  await page.click('#q-today');
+  ok('demó: a napló is jelöli', (await page.locator('.card').filter({hasText:'Mai napló'}).innerText()).toLowerCase().includes('demó'));
+  await page.screenshot({path:'shot-demo.png'});
+  await ctx.close();
+}
+
 await browser.close();
 console.log(log.join('\n'));
 console.log('\n' + (process.exitCode ? 'VANNAK HIBÁK' : 'MINDEN TESZT ZÖLD') + ' — ' + log.length + ' ellenőrzés');

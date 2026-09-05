@@ -41,14 +41,19 @@ friss visszaolvasás után, hogy ne írják felül egymást.
 - Ha nincs `window.storage`, a fájl `localStorage`-ra esik vissza, hogy önmagában
   is futtatható legyen. Ekkor a "megosztott" tár is csak az adott eszközön él,
   vagyis a szülő–gyerek párosítás egy gépen belül demózható.
-- A kikérdező az Anthropic API-t hívja API kulcs átadása nélkül; ez a gazda-
-  környezetben működik, önálló fájlként megnyitva a hálózati hívás elbukik
-  (ilyenkor magyar hibaüzenet jön).
+- **API kulcs sehol nincs a kliensben** — se beégetve, se beírható mezőben. A
+  kikérdező kulcs nélkül hívja az Anthropic API-t, amit a gazdakörnyezet kezel.
+  Élesben ugyanez a felállás: a kulcs a backenden marad, a telefon sosem látja.
+- Ezért a fotóból csak az éles környezet tud kérdést csinálni. Ha a fájlt csak
+  megnyitod, a hívás elbukik, és az app felkínál egy **demó kört** (helyben
+  generált kérdések), hogy a teljes hurok — óra, nincs visszalépés, pontozás,
+  jutalom, napló — kipróbálható legyen. A demó kör a naplóban jelölve van.
 
 ### Teszt
 
-Fejnélküli füstteszt Playwrighttal, 49 ellenőrzés (nap indítása, jutalom-
-számolás, minimum-szabály, napló, játékóra, PIN, párosítás, fülek szerepenként):
+Fejnélküli füstteszt Playwrighttal, 55 ellenőrzés (nap indítása, jutalom-
+számolás, minimum-szabály, napló, játékóra, PIN, párosítás, fülek szerepenként,
+offline demó kör):
 
 ```
 npx http-server -p 8099 -s .

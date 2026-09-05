@@ -440,6 +440,7 @@ function sessionHtml(s){
   const cls = (s.minutes||0) > 0 ? 'plus' : 'zero';
   return '<div class="item"><span class="t">'+esc(s.time)+'</span><span class="grow">'+esc(s.subject)+
          (s.topic ? ' <span class="muted">· '+esc(s.topic)+'</span>' : '')+
+         (s.demo ? ' <span class="pill">demó</span>' : '')+
          '<br><span class="tiny muted">'+(s.correct||0)+'/'+(s.tot||0)+' jó válasz</span></span>'+
          '<span class="m '+cls+'">'+((s.minutes||0) > 0 ? '+'+s.minutes : '0')+'</span></div>';
 }
@@ -505,7 +506,8 @@ function screenStudy(){
   const chosen = study.subject;
   const opts = subjectChoices();
   let h = '';
-  if(study.error) h += '<div class="err" style="margin-bottom:12px">'+esc(study.error)+'</div>';
+  if(study.error) h += '<div class="err" style="margin-bottom:12px">'+esc(study.error)+
+    (study.offline ? '<button class="btn" id="demo" style="margin-top:12px">Kipróbálom demó kérdésekkel</button>' : '')+'</div>';
 
   h += '<div class="card"><h3>Miből tanulsz?</h3><div class="row wrap">'+
     opts.map(s => '<button class="btn small'+(chosen===s?' primary':'')+'" data-sub="'+esc(s)+'">'+esc(s)+'</button>').join('')+
@@ -574,11 +576,26 @@ async function makeQuestions(b64, mime, subject, n){
   return {topic: String(obj.tema || '').trim().slice(0, 60), qs};
 }
 
+/* Demó kérdések: ha a kikérdező nem érhető el (pl. a fájlt csak megnyitottad),
+   ezzel a teljes kör kipróbálható. Nem az oldalról szólnak, ezért jelölve vannak. */
+function makeDemoQuestions(n){
+  const qs = [];
+  for(let i=0; i<n; i++){
+    const a = 2 + Math.floor(Math.random()*9), b = 2 + Math.floor(Math.random()*9);
+    const good = a*b;
+    const set = new Set([good]);
+    while(set.size < 4){ const d = good + (Math.floor(Math.random()*11) - 5); if(d > 0) set.add(d); }
+    const v = Array.from(set).sort(() => Math.random() - .5);
+    qs.push({k:'Mennyi '+a+' \u00d7 '+b+'?', v:v.map(String), j:v.indexOf(good), m:a+' \u00d7 '+b+' = '+good+'.'});
+  }
+  return qs;
+}
+
 /* =========================================================================
    KIKÉRDEZÉS — a kép nem látszik, óra ketyeg, visszalépés nincs
    ========================================================================= */
-function startQuiz(topic, qs, subject){
-  quiz = {subject, topic, qs, i:0, picked:null, correct:0, done:false, left:fam.settings.secs, timer:null};
+function startQuiz(topic, qs, subject, demo){
+  quiz = {subject, topic, qs, i:0, picked:null, correct:0, done:false, demo:!!demo, left:fam.settings.secs, timer:null};
   study.b64 = null; study.mime = null; study.file = null;
   render();
 }
@@ -620,7 +637,7 @@ async function finishQuiz(){
   minutes = Math.min(minutes, room);
   d.earned = (d.earned || 0) + minutes;
   d.sessions = d.sessions || [];
-  d.sessions.push({type:'study', subject:quiz.subject, topic:quiz.topic, correct:quiz.correct, tot:quiz.qs.length, minutes, time:hhmm()});
+  d.sessions.push({type:'study', subject:quiz.subject, topic:quiz.topic, correct:quiz.correct, tot:quiz.qs.length, minutes, time:hhmm(), demo:quiz.demo || undefined});
   quiz.done = true; quiz.gained = minutes; quiz.capped = (quiz.correct >= s.minCorrect && minutes < quiz.correct * s.perCorrect);
   await saveFam({days: fam.days});
   render();
@@ -633,6 +650,7 @@ function screenQuiz(){
       '<h2>'+(ok ? 'Megvan a plusz idő' : 'Ez most nem jött össze')+'</h2>'+
       '<p class="num" style="font-size:64px;color:'+(ok?'var(--ok)':'var(--bad)')+';margin:10px 0 4px">'+(ok?'+'+quiz.gained:'0')+'</p>'+
       '<p class="muted small">'+quiz.correct+'/'+quiz.qs.length+' jó válasz &middot; '+esc(quiz.topic || quiz.subject)+'</p>'+
+      (quiz.demo ? '<p class="tiny muted">Ez demó kör volt, nem az oldaladról. A naplóban jelölve.</p>' : '')+
       (ok ? '' : '<p class="small" style="margin-top:10px">Legalább '+s.minCorrect+' jó válasz kell. Olvasd át még egyszer az oldalt, és fotózd le újra.</p>')+
       (quiz.capped ? '<p class="tiny muted">A napi plafont elérted, ezért kevesebb jött be.</p>' : '')+
       '<p class="tiny muted">Ez a kör bekerült a naplóba.</p>'+
@@ -905,16 +923,21 @@ function bind(){
     study.busy = true; study.error = ''; render();
     try{
       const out = await makeQuestions(study.b64, study.mime, subject, fam.settings.qCount);
-      study.busy = false;
+      study.busy = false; study.offline = false;
       startQuiz(out.topic, out.qs, subject);
     }catch(err){
       console.error(err);
       study.busy = false;
-      study.error = /HTTP|Failed|NetworkError|fetch/i.test(String(err && err.message))
-        ? 'Nem érte el a kikérdezőt. Nézd meg a hálózatot, és próbáld újra.'
+      study.offline = /HTTP|Failed|NetworkError|fetch|Load failed/i.test(String(err && err.message));
+      study.error = study.offline
+        ? 'Nem érte el a kikérdezőt. Ez akkor is előfordul, ha a fájlt csak simán megnyitottad \u2014 a fotóból kérdést csak az éles környezet tud csinálni.'
         : 'A fotó nem volt olvasható. Készíts élesebb képet, jó fényben, hogy az egész oldal beleférjen, és próbáld újra.';
       render();
     }
+  });
+
+  on('demo','onclick', () => {
+    startQuiz('demó kérdések', makeDemoQuestions(fam.settings.qCount), currentSubject() || 'Demó', true);
   });
 
   /* --- Kikérdezés --- */
