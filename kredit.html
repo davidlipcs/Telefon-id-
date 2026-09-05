@@ -195,6 +195,7 @@ let fam    = null;      // család- vagy szólórekord
 let tab    = 'today';
 let unlocked = false;   // Szabályok fül PIN-je feloldva ebben a munkamenetben
 let flash  = null;      // {kind:'err'|'note', text}
+let wipeArm = false;    // leválasztás kétlépcsős megerősítése
 let study  = { subject:'', custom:'', text:'', error:'' };
 let quiz   = null;      // {subject, topic, qs, i, picked, correct, done, t, timer}
 let play   = null;      // {game, startedAt, budget, timer}
@@ -337,7 +338,7 @@ function renderTabs(){
   nav.innerHTML = tabsFor(device.role).map(([id,label]) =>
     '<button data-tab="'+id+'"'+(tab===id?' aria-current="page"':'')+'>'+ICONS[id]+'<span>'+label+'</span></button>'
   ).join('');
-  nav.querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.tab; quiz = null; render(); });
+  nav.querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.tab; quiz = null; wipeArm = false; render(); });
 }
 function flashHtml(){
   if(!flash) return '';
@@ -951,8 +952,11 @@ function screenRules(){
       '<button class="btn" id="save-pin" style="margin-top:10px">PIN mentése</button></div>';
   }
   if(device.role !== 'child'){
-    h += '<button class="btn ghost danger" id="wipe">Eszköz leválasztása</button>'+
-      '<p class="tiny muted center" style="margin-top:8px">A helyi beállítás törlődik, a család rekordja megmarad.</p>';
+    h += wipeArm
+      ? '<div class="card"><h2>Biztos leválasztod?</h2><p class="muted small">A helyi beállítás törlődik erről az eszközről. A család rekordja megmarad, a kóddal vissza lehet csatlakozni.</p>'+
+        '<div class="row"><button class="btn grow" id="wipe-no">Mégse</button><button class="btn danger grow" id="wipe-yes">Leválasztás</button></div></div>'
+      : '<button class="btn ghost danger" id="wipe">Eszköz leválasztása</button>'+
+        '<p class="tiny muted center" style="margin-top:8px">A helyi beállítás törlődik, a család rekordja megmarad.</p>';
   }
   return h;
 }
@@ -1089,12 +1093,13 @@ function bind(){
     unlocked = true;
     flash = {kind:'note', text: v ? 'PIN beállítva.' : 'PIN törölve.'}; render();
   });
-  on('wipe','onclick', async () => {
-    if(!confirm('Leválasztod ezt az eszközt? A helyi beállítás törlődik.')) return;
+  on('wipe','onclick', () => { wipeArm = true; render(); });
+  on('wipe-no','onclick', () => { wipeArm = false; render(); });
+  on('wipe-yes','onclick', async () => {
     if(play){ clearInterval(play.timer); play = null; }
     await rawSet(PLAY_KEY, null, false);
     await rawSet(DEVICE_KEY, null, false);
-    device = null; fam = null; unlocked = false; tab = 'today';
+    device = null; fam = null; unlocked = false; wipeArm = false; tab = 'today';
     render();
   });
 }

@@ -67,9 +67,18 @@ API-t jelentene. A leírás viszont maga is tanulás, úgyhogy a hurok nem üres
 - Az egyetlen külső kérés a Google Fonts, tisztán kozmetikai; ha nem tölt be,
   rendszerbetűkkel fut tovább.
 
+### Publikálás
+
+A `kredit.html` teljes dokumentum, önmagában megnyitható. Artifactként publikálva a
+burkoló tageket a platform adja hozzá, ezért ott a tartalom kell nélkülük:
+
+```
+node build-artifact.mjs > kredit-artifact.html
+```
+
 ### Teszt
 
-Fejnélküli füstteszt Playwrighttal, 50 ellenőrzés — a generátor önmagában
+Fejnélküli füstteszt Playwrighttal, 52 ellenőrzés — a generátor önmagában
 (4 különböző válasz, a jó válasz a szövegből jön, a zavaró válasz nem látszik a
 mondatban — 40 lefutáson át ellenőrizve), a jutalomszámolás, a minimum-szabály, az
 ismételt szöveg blokkolása, a napló, a játékóra percenkénti fogyása, a PIN-zár

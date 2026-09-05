@@ -184,8 +184,12 @@ async function studyRound(page, subject, text, right){
   ok('szülőnél 2 fül', (await page.locator('#tabs button').count()) === 2);
   ok('szülőnél nincs Tanulás/Játék', (await page.locator('#tabs button[data-tab=study]').count()) === 0);
   await page.fill('#tt-2','Töri'); await page.click('#save-tt');
-  page.on('dialog', d => d.accept());
   await page.click('#wipe');
+  ok('leválasztás megerősítést kér', await page.locator('#wipe-yes').isVisible());
+  await page.click('#wipe-no');
+  ok('a Mégse visszalép', (await page.locator('#wipe-yes').count()) === 0);
+  await page.click('#wipe');
+  await page.click('#wipe-yes');
   await page.fill('#ob-cname','Bence'); await page.fill('#ob-code','000000'); await page.click('#ob-child');
   ok('rossz kód elutasítva', (await page.locator('.err').innerText()).includes('Nincs ilyen kód'));
   await page.fill('#ob-cname','Bence'); await page.fill('#ob-code', code); await page.click('#ob-child');
