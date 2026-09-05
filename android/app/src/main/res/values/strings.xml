@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kredit</string>
+    <string name="guard_label">Kredit zárolás</string>
+    <string name="guard_description">Figyeli, mikor indul zárolt app, számolja a játékidőt, és nullánál lezár. Nem olvassa a képernyő tartalmát, és semmit nem küld sehova.</string>
+    <string name="parent_title">Appok és védelem</string>
+    <string name="block_title">Elfogyott a játékidő</string>
+    <string name="block_body">Írd le a Kreditben, amit tanultál. Minden jó válasz újabb perceket ad.</string>
+    <string name="block_ok">Rendben</string>
+    <string name="block_study">Tanulok</string>
+    <string name="block_body_no_day">Még nem indítottad el a napot. Nyisd meg a Kreditet, és állítsd be, mennyit játszanál.</string>
+    <string name="setup_guard">A zárolás még nem él. A Kreditnek figyelnie kell, melyik app van előtérben — ehhez a kisegítő lehetőségeknél kell bekapcsolni. A képernyő tartalmát nem olvassa.</string>
+    <string name="setup_guard_button">Figyelő bekapcsolása</string>
+    <string name="setup_overlay">Már figyel, de nem tud üzenni. A panelhez, ami megmondja, miért állt le a játék, engedély kell más appok fölé rajzolni.</string>
+    <string name="setup_overlay_button">Engedély megadása</string>
+    <string name="setup_apps">Még egy lépés: válaszd ki, melyik appokat zárolja a telefon.</string>
+    <string name="setup_apps_button">Appok kiválasztása</string>
+    <string name="parent_locked">Zárolt</string>
+    <string name="parent_locked_body">Add meg a PIN-t. Ugyanaz, amit a Szabályoknál beállítottál.</string>
+    <string name="parent_pin_hint">PIN</string>
+    <string name="parent_unlock">Feloldás</string>
+    <string name="parent_pin_wrong">Nem stimmel a PIN. Próbáld újra.</string>
+    <string name="parent_status">Védelem</string>
+    <string name="status_guard">Figyelő</string>
+    <string name="status_overlay">Panel más appok fölött</string>
+    <string name="status_on">él</string>
+    <string name="status_off">nem él</string>
+    <string name="parent_apps">Zárolt appok</string>
+    <string name="parent_apps_body">Amit kipipálsz, azt a telefon a keretből számolja, és nullánál kiteszi az előtérből.</string>
+    <string name="parent_save">Mentés</string>
+    <string name="parent_saved">Mentve.</string>
+    <string name="parent_log">Mi történt a védelemmel</string>
+    <string name="parent_log_body">Kikapcsolni eszközgazda-jog nélkül nem lehet megakadályozni, de kimutatni igen.</string>
+    <string name="parent_log_empty">Még nincs bejegyzés.</string>
+</resources>

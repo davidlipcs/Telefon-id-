@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#12172B</color>
+    <color name="panel">#1B2240</color>
+    <color name="panel2">#232B4E</color>
+    <color name="line">#2F3963</color>
+    <color name="ink">#E9EBF4</color>
+    <color name="muted">#8A93B8</color>
+    <color name="fuel">#FFB44D</color>
+    <color name="bad">#F2647C</color>
+    <color name="scrim">#E60E1226</color>
+</resources>

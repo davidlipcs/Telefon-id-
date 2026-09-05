@@ -56,10 +56,27 @@ API-t jelentene. A leírás viszont maga is tanulás, úgyhogy a hurok nem üres
   így a bemásolt halandzsa kilóg.
 - A sikertelen kör is bekerül a naplóba.
 
+### Android app
+
+A `android/` mappában ott a natív réteg, ami böngészőben nem megoldható: magától
+elindul, a háttérben fut, és tényleg lezárja a játékot. A felület ugyanez a
+`kredit.html`, WebView-ban — a build másolja be, tehát egy forrás van, nem kettő.
+A részletek: [`android/README.md`](android/README.md).
+
+Röviden: a figyelő kisegítő szolgáltatásként fut (a rendszer indítja
+bekapcsoláskor, nem lövi ki), az ablakváltásokból tudja, melyik app van
+előtérben, percenként vonja a keretet, nullánál kiteszi az appot az előtérből és
+panelt mutat. A `kredit.html` tárolóadaptere Androidon a natív hídon keresztül
+ír, hogy a szolgáltatás akkor is lássa a keretet, amikor a felület nem fut.
+Hálózati engedélye az appnak nincs.
+
 ### Amit tudni kell a korlátairól
 
-- **A böngésző nem tud játékot blokkolni.** Élesben ez natív Android réteg:
-  UsageStatsManager + overlay + foreground service.
+- **A böngésző nem tud játékot blokkolni.** Ehhez az `android/` mappában lévő
+  natív app kell. A HTML önmagában becsületkassza.
+- Az Android projekt **nincs lefordítva** — ahol készült, ott nincs Android SDK.
+  A forrás teljes, az erőforrás-hivatkozások ellenőrizve, de az első fordítás
+  hozhat olyan hibát, amit csak a fordító talál meg.
 - **A párosítás itt megosztott tárolón megy.** Élesben Firebase Auth + Firestore.
 - Ha nincs `window.storage`, a fájl `localStorage`-ra esik vissza. Ekkor a
   „megosztott" tár is csak az adott eszközön él, vagyis a szülő–gyerek párosítás

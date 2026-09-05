@@ -153,9 +153,17 @@ textarea{resize:vertical;min-height:130px;line-height:1.5}
    window.storage a gazdakörnyezet API-ja; ha nincs, localStorage a tartalék,
    hogy a fájl önmagában is fusson.
    ========================================================================= */
-const NATIVE = (typeof window !== 'undefined' && window.storage) ? window.storage : null;
+const NATIVE  = (typeof window !== 'undefined' && window.storage) ? window.storage : null;
+/* Android-burokban a natív réteg tárol, hogy a zárolást végző szolgáltatás is
+   lássa a keretet akkor is, amikor ez a felület nem fut. */
+const ANDROID = (typeof window !== 'undefined' && window.KreditNative) ? window.KreditNative : null;
+const nk = (key, shared) => (shared ? 's:' : 'p:') + key;
 
 async function rawGet(key, shared){
+  if(ANDROID){
+    try{ const v = ANDROID.getItem(nk(key, shared)); return v ? JSON.parse(v) : null; }
+    catch(e){ console.warn('KreditNative.getItem', e); }
+  }
   if(NATIVE){
     try{
       if(typeof NATIVE.get === 'function')      return await NATIVE.get(key, {shared:!!shared});
@@ -171,6 +179,10 @@ async function rawGet(key, shared){
   }catch(e){ return null; }
 }
 async function rawSet(key, val, shared){
+  if(ANDROID){
+    try{ ANDROID.setItem(nk(key, shared), val === null ? '' : JSON.stringify(val)); return true; }
+    catch(e){ console.warn('KreditNative.setItem', e); }
+  }
   if(NATIVE){
     try{
       if(typeof NATIVE.set === 'function'){     await NATIVE.set(key, val, {shared:!!shared}); return true; }
@@ -310,6 +322,13 @@ async function boot(){
   render();
 }
 window.addEventListener('DOMContentLoaded', boot);
+/* Az Android burok hívja, amikor visszatérünk a felülethez: a figyelő közben
+   elhasználhatott perceket. Futó kikérdezés alatt nem nyúlunk hozzá, hogy a
+   háttérbe tétel ne nullázhassa a visszaszámlálót. */
+window.reloadFromNative = async function(){
+  if(!device || (quiz && !quiz.done)) return;
+  await reloadFam(); render();
+};
 document.addEventListener('visibilitychange', async () => {
   if(document.visibilityState === 'visible' && device && device.role === 'parent'){
     await reloadFam(); render();
@@ -844,7 +863,17 @@ function screenPlay(){
   const d = day();
   if(!d) return '<div class="card center"><h2>Előbb indítsd el a napot</h2><p class="muted small">A Ma fülön állítsd be, mennyit játszanál.</p></div>';
   const f = fuel();
-  const note = '<div class="note">A böngésző nem tudja tényleg letiltani a játékokat &mdash; ez itt a becsületkassza. Élesben az Android réteg zárol (UsageStatsManager + overlay + foreground service).</div>';
+  if(ANDROID){
+    return '<div class="card"><div class="spread"><h3 style="margin:0">Zárolt appok</h3>'+
+      '<span class="pill '+(f.left>0?'fuel':'bad')+'">'+f.left+' perc</span></div>'+
+      '<p class="muted small" style="margin:10px 0 0">A telefon magától figyeli, mikor indítasz zárolt appot, és abból számolja a percet. Itt nincs mit elindítanod.</p>'+
+      (fam.games.length ? fam.games.map(g => '<div class="item"><span class="grow">'+esc(g)+'</span>'+
+        (f.left>0 ? '<span class="pill ok">mehet</span>' : '<span class="pill bad">zárolva</span>')+'</div>').join('')
+        : '<p class="muted small">Nincs felvéve app. A szabályoknál lehet listát megadni.</p>')+
+      '</div>'+
+      (f.left <= 0 ? '<div class="card quiet center"><h2>Elfogyott a keret</h2><p class="muted small" style="margin:0">Írd le a Tanulás fülön, amit tanultál. Minden jó válasz '+fam.settings.perCorrect+' perc.</p></div>' : '');
+  }
+  const note = '<div class="note">A böngésző nem tudja tényleg letiltani a játékokat &mdash; ez itt a becsületkassza. Az Android appban a natív réteg zárol.</div>';
   if(play){
     const left = playLeft();
     return '<div class="fuel"><span class="lbl">Fut &middot; '+esc(play.game)+'</span>'+
@@ -918,6 +947,12 @@ function screenRules(){
         : '<h2>Párosító kód</h2><p class="muted small">Írd be a gyerek eszközén a &bdquo;Van kódom&rdquo; menüben.</p>'+
           '<p class="code center">'+esc(device.code)+'</p>')+
       '<button class="btn" id="refresh" style="margin-top:12px">Frissítés</button></div>';
+  }
+
+  if(ANDROID){
+    h += '<div class="card"><h3>Zárolt appok a telefonon</h3>'+
+      '<p class="tiny muted" style="margin:-4px 0 10px">Itt válaszd ki, melyik appot zárolja a telefon, és itt látod, él-e a védelem.</p>'+
+      '<button class="btn" id="nat-apps">Appok és védelem</button></div>';
   }
 
   if(device.role === 'solo') h += '<h3 style="margin:18px 0 10px">Elmúlt 7 nap</h3>' + logHtml();
@@ -1044,6 +1079,7 @@ function bind(){
   on('p-stop','onclick', () => stopPlay(false));
 
   /* --- Napló / Szabályok --- */
+  on('nat-apps','onclick', () => { try{ ANDROID.openParentScreen(); }catch(e){ console.warn(e); } });
   on('refresh','onclick', async () => { await reloadFam(); flash = {kind:'note', text:'Frissítve.'}; render(); });
   on('pin-go','onclick', () => {
     const v = document.getElementById('pin-in').value.trim();
