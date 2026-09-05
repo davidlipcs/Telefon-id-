@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#12172B">
+<title>Kredit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#12172B; --panel:#1B2240; --panel-2:#232B4E; --line:#2F3963;
+  --ink:#E9EBF4; --muted:#8A93B8; --fuel:#FFB44D; --ok:#57D6A0; --bad:#F2647C;
+  --r:16px; --r-sm:10px;
+  --head:'Bricolage Grotesque','Trebuchet MS',system-ui,sans-serif;
+  --body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --tabh:64px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--body);
+  font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+h1,h2,h3,.num{font-family:var(--head);margin:0}
+h1{font-size:24px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:17px;font-weight:700;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+p{margin:0 0 10px}
+:focus-visible{outline:2px solid var(--fuel);outline-offset:2px;border-radius:6px}
+
+.app{max-width:480px;margin:0 auto;padding:18px 16px calc(var(--tabh) + 28px + env(safe-area-inset-bottom));min-height:100vh}
+.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:16px}
+.topbar .who{color:var(--muted);font-size:13px}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card.quiet{background:transparent;border-style:dashed}
+.card > h2{margin-bottom:8px}
+.card > h3{margin-bottom:10px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.tiny{font-size:12px}
+.center{text-align:center}
+.stack > * + *{margin-top:10px}
+.row{display:flex;gap:8px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.grow{flex:1;min-width:0}
+hr.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
+
+/* ---- fuel gauge: the face of the app ---- */
+.fuel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:22px 18px 18px;margin-bottom:12px}
+.fuel .lbl{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.fuel .num{
+  font-size:clamp(64px,22vw,88px);font-weight:800;line-height:.92;color:var(--fuel);
+  letter-spacing:-.045em;font-variant-numeric:tabular-nums;display:block;margin:6px 0 2px
+}
+.fuel .num.empty{color:var(--bad)}
+.fuel .unit{font-family:var(--head);font-size:16px;font-weight:700;color:var(--muted);margin-left:10px;letter-spacing:normal}
+.seg{display:flex;gap:3px;margin:16px 0 12px}
+.seg i{flex:1;height:14px;border-radius:3px;background:var(--panel-2);transition:background .25s ease}
+.seg i.on{background:var(--fuel)}
+.seg i.low{background:var(--bad)}
+.fuel .legend{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.fuel .legend b{color:var(--ink);font-weight:600}
+
+/* ---- buttons & fields ---- */
+.btn{
+  appearance:none;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+  font-family:var(--body);font-size:15px;font-weight:600;padding:12px 16px;border-radius:var(--r-sm);
+  cursor:pointer;transition:transform .12s ease,background .18s ease;width:100%;text-align:center
+}
+.btn:active{transform:scale(.985)}
+.btn.primary{background:var(--fuel);color:#231502;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:8px 12px;font-size:13px;width:auto}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+label.f{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+input,select,textarea{
+  width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:12px;font-family:var(--body);font-size:16px
+}
+input[type=file]{padding:10px;font-size:13px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.pill{display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
+.pill.ok{color:var(--ok);border-color:rgba(87,214,160,.35)}
+.pill.bad{color:var(--bad);border-color:rgba(242,100,124,.35)}
+.pill.fuel{color:var(--fuel);border-color:rgba(255,180,77,.35)}
+.code{font-family:var(--head);font-size:34px;font-weight:800;letter-spacing:.22em;color:var(--fuel)}
+
+.item{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item .t{font-size:12px;color:var(--muted);width:42px;flex:none;font-variant-numeric:tabular-nums}
+.item .m{flex:none;font-weight:600;font-variant-numeric:tabular-nums}
+.item .m.plus{color:var(--ok)}
+.item .m.zero{color:var(--bad)}
+.item .m.play{color:var(--fuel)}
+
+.note{background:rgba(255,180,77,.07);border:1px solid rgba(255,180,77,.22);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--muted)}
+.err{background:rgba(242,100,124,.09);border:1px solid rgba(242,100,124,.3);border-radius:var(--r-sm);padding:12px;font-size:14px;color:var(--ink)}
+
+/* ---- quiz ---- */
+.qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.tbar{height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden;margin:10px 0 16px}
+.tbar i{display:block;height:100%;background:var(--fuel);width:100%;transition:width 1s linear}
+.tbar i.warn{background:var(--bad)}
+.q{font-family:var(--head);font-size:20px;font-weight:700;line-height:1.3;margin:6px 0 16px;letter-spacing:-.01em}
+.opt{
+  display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--line);
+  color:var(--ink);border-radius:var(--r-sm);padding:14px;margin-bottom:8px;font-size:15px;
+  font-family:var(--body);cursor:pointer;transition:border-color .15s ease
+}
+.opt:disabled{cursor:default}
+.opt.good{border-color:var(--ok);background:rgba(87,214,160,.1)}
+.opt.wrong{border-color:var(--bad);background:rgba(242,100,124,.1)}
+.opt b{font-family:var(--head);color:var(--muted);margin-right:8px}
+.why{font-size:14px;color:var(--muted);margin:12px 0 16px;padding-left:12px;border-left:2px solid var(--line)}
+
+/* ---- tab bar ---- */
+.tabs{
+  position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(480px,100%);
+  display:flex;background:rgba(18,23,43,.94);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:20
+}
+.tabs button{
+  flex:1;background:none;border:0;color:var(--muted);font-family:var(--body);font-size:11px;
+  padding:9px 0 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px
+}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current=page]{color:var(--fuel)}
+
+.locked{opacity:.5}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--fuel);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<nav class="tabs" id="tabs" hidden></nav>
+<script>
+"use strict";
+
+/* =========================================================================
+   TÁROLÓ
+   Párosított módban a megosztott tár, szólóban a privát.
+   window.storage a gazdakörnyezet API-ja; ha nincs, localStorage a tartalék,
+   hogy a fájl önmagában is fusson.
+   ========================================================================= */
+const NATIVE = (typeof window !== 'undefined' && window.storage) ? window.storage : null;
+
+async function rawGet(key, shared){
+  if(NATIVE){
+    try{
+      if(typeof NATIVE.get === 'function')      return await NATIVE.get(key, {shared:!!shared});
+      if(typeof NATIVE.getItem === 'function'){
+        const v = await NATIVE.getItem(key, {shared:!!shared});
+        return typeof v === 'string' ? JSON.parse(v) : v;
+      }
+    }catch(e){ console.warn('storage.get', e); }
+  }
+  try{
+    const s = localStorage.getItem((shared?'kredit-shared:':'kredit-priv:') + key);
+    return s ? JSON.parse(s) : null;
+  }catch(e){ return null; }
+}
+async function rawSet(key, val, shared){
+  if(NATIVE){
+    try{
+      if(typeof NATIVE.set === 'function'){     await NATIVE.set(key, val, {shared:!!shared}); return true; }
+      if(typeof NATIVE.setItem === 'function'){ await NATIVE.setItem(key, JSON.stringify(val), {shared:!!shared}); return true; }
+    }catch(e){ console.warn('storage.set', e); }
+  }
+  try{ localStorage.setItem((shared?'kredit-shared:':'kredit-priv:') + key, JSON.stringify(val)); return true; }
+  catch(e){ return false; }
+}
+
+const DEVICE_KEY = 'kredit-device';
+const PLAY_KEY   = 'kredit-active-play';   // eszközhelyi, hogy újratöltés ne nyelje el a futó kört
+
+const DEFAULTS = { base:30, perCorrect:3, minCorrect:3, cap:120, qCount:6, secs:25 };
+const DEFAULT_GAMES = ['Brawl Stars','Clash Royale','Roblox'];
+
+/* =========================================================================
+   ÁLLAPOT
+   ========================================================================= */
+let device = null;      // {role, code, name, pin}
+let fam    = null;      // család- vagy szólórekord
+let tab    = 'today';
+let unlocked = false;   // Szabályok fül PIN-je feloldva ebben a munkamenetben
+let flash  = null;      // {kind:'err'|'note', text}
+let study  = { subject:'', custom:'', file:null, busy:false, error:'' };
+let quiz   = null;      // {subject, topic, qs, i, picked, correct, done, t, timer}
+let play   = null;      // {game, startedAt, budget, timer}
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp = (n,a,b) => Math.max(a, Math.min(b, n));
+const int = (v,d) => { const n = parseInt(v,10); return Number.isFinite(n) ? n : d; };
+
+function todayKey(d){ const t = d||new Date(); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); }
+function weekKey(d){
+  const t = new Date(d||Date.now()); t.setHours(0,0,0,0);
+  t.setDate(t.getDate() + 4 - (t.getDay()||7));
+  const y0 = new Date(t.getFullYear(),0,1);
+  const w = Math.ceil(((t - y0)/86400000 + 1)/7);
+  return t.getFullYear()+'-W'+String(w).padStart(2,'0');
+}
+function hhmm(d){ const t = d||new Date(); return String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0'); }
+const DAYNAMES = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
+function niceDate(key){
+  const [y,m,d] = key.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  if(key === todayKey()) return 'ma';
+  const yest = new Date(); yest.setDate(yest.getDate()-1);
+  if(key === todayKey(yest)) return 'tegnap';
+  return m+'. '+d+'. '+DAYNAMES[dt.getDay()];
+}
+function nextSchoolDay(){ // holnap; hétvégén a következő hétfő
+  const t = new Date(); t.setDate(t.getDate()+1);
+  let g = t.getDay();
+  if(g === 0) g = 1; else if(g === 6) g = 1;
+  return g;
+}
+
+function famKey(){ return device.role === 'solo' ? 'kredit-solo' : 'kredit-fam-' + device.code; }
+function isShared(){ return device.role !== 'solo'; }
+
+function blankFam(code, parentName){
+  return {
+    code: code || '', parentName: parentName || '', childName: '', paired:false,
+    settings: Object.assign({}, DEFAULTS),
+    timetable: {1:[],2:[],3:[],4:[],5:[]},
+    tests: [], games: DEFAULT_GAMES.slice(), days: {}, lastTestAsk: ''
+  };
+}
+function normalizeFam(f){
+  const n = Object.assign(blankFam(), f || {});
+  n.settings  = Object.assign({}, DEFAULTS, n.settings || {});
+  n.timetable = Object.assign({1:[],2:[],3:[],4:[],5:[]}, n.timetable || {});
+  for(let d=1; d<=5; d++) if(!Array.isArray(n.timetable[d])) n.timetable[d] = [];
+  if(!Array.isArray(n.tests)) n.tests = [];
+  if(!Array.isArray(n.games)) n.games = DEFAULT_GAMES.slice();
+  if(!n.days || typeof n.days !== 'object') n.days = {};
+  return n;
+}
+
+/* Mindkét eszköz csak a saját mezőit írja: előbb friss olvasás, aztán ráolvasás. */
+const OWNED = {
+  parent: ['settings','timetable','games','parentName'],
+  child : ['days','tests','lastTestAsk','paired','childName'],
+  solo  : null   // szólóban minden a sajátja
+};
+async function saveFam(fields){
+  const own = OWNED[device.role];
+  const fresh = normalizeFam(await rawGet(famKey(), isShared()) || fam);
+  for(const k in fields){
+    if(own && own.indexOf(k) < 0) continue;
+    fresh[k] = fields[k];
+  }
+  fam = fresh;
+  const ok = await rawSet(famKey(), fresh, isShared());
+  if(!ok) flash = {kind:'err', text:'Nem sikerült menteni. Próbáld újra.'};
+  return ok;
+}
+async function reloadFam(){
+  const f = await rawGet(famKey(), isShared());
+  if(f) fam = normalizeFam(f);
+}
+
+/* =========================================================================
+   NAPI SZÁMOLÁS
+   ========================================================================= */
+function day(){ return fam.days[todayKey()] || null; }
+function fuel(){
+  const d = day(); if(!d) return {base:0, earned:0, played:0, left:0, total:0};
+  const total = (d.base||0) + (d.earned||0);
+  return {base:d.base||0, earned:d.earned||0, played:d.played||0, left:Math.max(0, total - (d.played||0)), total};
+}
+function upcomingTests(){
+  const t = todayKey();
+  return (fam.tests||[]).filter(x => x && x.date >= t).sort((a,b) => a.date < b.date ? -1 : 1);
+}
+
+/* =========================================================================
+   BETÖLTÉS
+   ========================================================================= */
+async function boot(){
+  device = await rawGet(DEVICE_KEY, false);
+  if(device && device.role){
+    const f = await rawGet(famKey(), isShared());
+    if(!f && device.role === 'child'){
+      // A megosztott rekord nem érhető el -> vissza a párosításhoz.
+      flash = {kind:'err', text:'Nem találom a családot ehhez a kódhoz. Párosíts újra.'};
+      device = null; await rawSet(DEVICE_KEY, null, false);
+    }else{
+      fam = normalizeFam(f || blankFam(device.code, device.name));
+      if(!f) await rawSet(famKey(), fam, isShared());
+      tab = device.role === 'parent' ? 'log' : 'today';
+      await resumePlay();
+    }
+  }
+  render();
+}
+window.addEventListener('DOMContentLoaded', boot);
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState === 'visible' && device && device.role === 'parent'){
+    await reloadFam(); render();
+  }
+});
+
+/* =========================================================================
+   RENDER — váz
+   ========================================================================= */
+const ICONS = {
+  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 17a8.5 8.5 0 0 1 17 0"/><path d="M12 17l4.2-5.4"/><path d="M12 8.5v-1M5.6 10.6l-.8-.7M18.4 10.6l.8-.7"/></svg>',
+  study:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 6.5S10.3 4.8 6.8 4.8H4v13h2.8c3.5 0 5.2 1.7 5.2 1.7"/><path d="M12 6.5s1.7-1.7 5.2-1.7H20v13h-2.8c-3.5 0-5.2 1.7-5.2 1.7"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.6" y="6.6" width="18.8" height="10.8" rx="4.2"/><path d="M7 12h3.4M8.7 10.3v3.4"/><circle cx="16.4" cy="12" r="1.15" fill="currentColor" stroke="none"/></svg>',
+  rules:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9.5" cy="7" r="2.1" fill="var(--bg)"/><circle cx="15" cy="12" r="2.1" fill="var(--bg)"/><circle cx="8" cy="17" r="2.1" fill="var(--bg)"/></svg>',
+  log:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>'
+};
+function tabsFor(role){
+  if(role === 'parent') return [['log','Napló'],['rules','Szabályok']];
+  if(role === 'child')  return [['today','Ma'],['study','Tanulás'],['play','Játék']];
+  return [['today','Ma'],['study','Tanulás'],['play','Játék'],['rules','Szabályok']];
+}
+function renderTabs(){
+  const nav = $('#tabs');
+  if(!device){ nav.hidden = true; nav.innerHTML = ''; return; }
+  nav.hidden = false;
+  nav.innerHTML = tabsFor(device.role).map(([id,label]) =>
+    '<button data-tab="'+id+'"'+(tab===id?' aria-current="page"':'')+'>'+ICONS[id]+'<span>'+label+'</span></button>'
+  ).join('');
+  nav.querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.tab; quiz = null; render(); });
+}
+function flashHtml(){
+  if(!flash) return '';
+  const cls = flash.kind === 'err' ? 'err' : 'note';
+  const h = '<div class="'+cls+'" style="margin-bottom:12px">'+esc(flash.text)+'</div>';
+  flash = null;
+  return h;
+}
+function render(){
+  const app = $('#app');
+  if(!device){ app.innerHTML = onboarding(); renderTabs(); bindOnboarding(); return; }
+  let body = '';
+  if(tab === 'today')      body = screenToday();
+  else if(tab === 'study') body = quiz ? screenQuiz() : screenStudy();
+  else if(tab === 'play')  body = screenPlay();
+  else if(tab === 'log')   body = screenLog();
+  else if(tab === 'rules') body = screenRules();
+  app.innerHTML = header() + flashHtml() + body;
+  renderTabs();
+  bind();
+  window.scrollTo(0,0);
+}
+function header(){
+  const who = device.role === 'parent' ? 'Szülői eszköz'
+            : device.role === 'child'  ? (device.name ? esc(device.name) : 'Gyerek')
+            : 'Szóló';
+  const title = tab==='today'?'Ma':tab==='study'?'Tanulás':tab==='play'?'Játék':tab==='log'?'Napló':'Szabályok';
+  return '<div class="topbar"><h1>'+title+'</h1><span class="who">'+who+'</span></div>';
+}
+
+/* =========================================================================
+   BEÁLLÍTÁS (induló képernyő)
+   ========================================================================= */
+function onboarding(){
+  return ''+
+  '<div class="topbar"><h1>Kredit</h1><span class="who">a játékidőt ki kell tanulni</span></div>'+
+  flashHtml()+
+  '<div class="card"><h2>Szóló</h2><p class="muted small">Magadnak állítod a szabályokat. Minden adat ezen az eszközön marad.</p>'+
+    '<button class="btn primary" id="ob-solo">Kezdés szólóban</button></div>'+
+  '<div class="card"><h2>Szülő vagyok</h2><p class="muted small">Kapsz egy 6 jegyű kódot a gyerek eszközéhez. Itt a napló és a szabályok látszanak, játék nem.</p>'+
+    '<div class="stack">'+
+    '<div><label class="f" for="ob-pname">A neved</label><input id="ob-pname" placeholder="pl. Anya" autocomplete="off"></div>'+
+    '<div><label class="f" for="ob-pin">PIN (4-6 számjegy)</label><input id="ob-pin" inputmode="numeric" maxlength="6" placeholder="••••" autocomplete="off"></div>'+
+    '<button class="btn primary" id="ob-parent">Család létrehozása</button></div></div>'+
+  '<div class="card"><h2>Van kódom</h2><p class="muted small">A szülőtől kapott 6 jegyű kóddal csatlakozol.</p>'+
+    '<div class="stack">'+
+    '<div><label class="f" for="ob-cname">A neved</label><input id="ob-cname" placeholder="pl. Bence" autocomplete="off"></div>'+
+    '<div><label class="f" for="ob-code">Párosító kód</label><input id="ob-code" inputmode="numeric" maxlength="6" placeholder="123456" autocomplete="off"></div>'+
+    '<button class="btn primary" id="ob-child">Csatlakozás</button></div></div>';
+}
+function bindOnboarding(){
+  $('#ob-solo').onclick = async () => {
+    device = {role:'solo', code:'', name:'', pin:''};
+    fam = blankFam('', '');
+    await rawSet(DEVICE_KEY, device, false);
+    await rawSet(famKey(), fam, false);
+    tab = 'today'; render();
+  };
+  $('#ob-parent').onclick = async () => {
+    const name = $('#ob-pname').value.trim();
+    const pin  = $('#ob-pin').value.trim();
+    if(!/^\d{4,6}$/.test(pin)){ flash = {kind:'err', text:'A PIN 4-6 számjegy legyen. Ezzel véded a szabályokat.'}; render(); return; }
+    const code = String(Math.floor(100000 + Math.random()*900000));
+    device = {role:'parent', code, name, pin};
+    fam = blankFam(code, name);
+    await rawSet(famKey(), fam, true);
+    await rawSet(DEVICE_KEY, device, false);
+    unlocked = true; tab = 'rules'; render();
+  };
+  $('#ob-child').onclick = async () => {
+    const name = $('#ob-cname').value.trim();
+    const code = $('#ob-code').value.trim();
+    if(!/^\d{6}$/.test(code)){ flash = {kind:'err', text:'A kód pontosan 6 számjegy. Kérd el újra a szülődtől.'}; render(); return; }
+    const f = await rawGet('kredit-fam-' + code, true);
+    if(!f){ flash = {kind:'err', text:'Nincs ilyen kód. Ellenőrizd a számokat, vagy kérj újat.'}; render(); return; }
+    device = {role:'child', code, name, pin:''};
+    fam = normalizeFam(f);
+    await rawSet(DEVICE_KEY, device, false);
+    await saveFam({paired:true, childName:name});
+    tab = 'today'; flash = {kind:'note', text:'Párosítva. Jó tanulást!'}; render();
+  };
+}
+
+/* =========================================================================
+   MA
+   ========================================================================= */
+function segHtml(left, total){
+  let f = total > 0 ? clamp(Math.round(left/total*20), 0, 20) : 0;
+  if(left > 0 && f === 0) f = 1;
+  const low = left <= 5;
+  let s = '<div class="seg" role="img" aria-label="'+left+' perc maradt">';
+  for(let i=0; i<20; i++) s += '<i class="'+(i<f ? (low?'on low':'on') : '')+'"></i>';
+  return s + '</div>';
+}
+function sessionHtml(s){
+  if(s.type === 'play'){
+    return '<div class="item"><span class="t">'+esc(s.time)+'</span><span class="grow">Játék · '+esc(s.game)+'</span>'+
+           '<span class="m play">&minus;'+(s.minutes||0)+'</span></div>';
+  }
+  const cls = (s.minutes||0) > 0 ? 'plus' : 'zero';
+  return '<div class="item"><span class="t">'+esc(s.time)+'</span><span class="grow">'+esc(s.subject)+
+         (s.topic ? ' <span class="muted">· '+esc(s.topic)+'</span>' : '')+
+         '<br><span class="tiny muted">'+(s.correct||0)+'/'+(s.tot||0)+' jó válasz</span></span>'+
+         '<span class="m '+cls+'">'+((s.minutes||0) > 0 ? '+'+s.minutes : '0')+'</span></div>';
+}
+function screenToday(){
+  const d = day();
+  if(!d){
+    const max = fam.settings.base;
+    return ''+
+    '<div class="card"><h2>Mennyit játszanál ma?</h2>'+
+      '<p class="muted small">Ennyi az alapkeret. Efölé csak úgy jutsz, ha tanulsz és jól válaszolsz.</p>'+
+      '<label class="f" for="dbase">Perc &mdash; legfeljebb '+max+'</label>'+
+      '<input id="dbase" type="number" inputmode="numeric" min="0" max="'+max+'" value="'+max+'">'+
+      '<button class="btn primary" id="startday" style="margin-top:12px">Nap indítása</button></div>'+
+    '<p class="tiny muted center">A nap egyszer indul. Utána a keret csak tanulással nő.</p>';
+  }
+  const f = fuel();
+  let h = ''+
+  '<div class="fuel"><span class="lbl">Maradék játékidő</span>'+
+    '<span class="num'+(f.left===0?' empty':'')+'">'+f.left+'<span class="unit">perc</span></span>'+
+    segHtml(f.left, f.total)+
+    '<div class="legend"><span>alap <b>'+f.base+'</b> + kitanult <b>'+f.earned+'</b></span><span>lejátszva <b>'+f.played+'</b></span></div>'+
+  '</div>';
+
+  if(fam.lastTestAsk !== weekKey()){
+    h += '<div class="card"><h2>Van dolgozatod a héten?</h2>'+
+      '<p class="muted small">Ha felveszed, a tanulásnál előre hozom a tantárgyat.</p>'+
+      '<div class="stack">'+
+        '<input id="t-sub" placeholder="Tantárgy" autocomplete="off">'+
+        '<input id="t-date" type="date" value="'+todayKey()+'">'+
+        '<div class="row"><button class="btn primary grow" id="t-add">Felveszem</button>'+
+        '<button class="btn ghost grow" id="t-skip">Nincs</button></div>'+
+      '</div></div>';
+  }
+  const up = upcomingTests();
+  if(up.length){
+    h += '<div class="card"><h3>Közelgő dolgozatok</h3>'+
+      up.slice(0,5).map(t => '<div class="item"><span class="grow">'+esc(t.subject)+'</span><span class="pill">'+esc(t.date)+'</span></div>').join('')+
+    '</div>';
+  }
+  const ss = (d.sessions||[]).slice().reverse();
+  h += '<div class="card"><h3>Mai napló</h3>'+
+    (ss.length ? ss.map(sessionHtml).join('')
+               : '<p class="muted small" style="margin:0">Még üres. Fotózz le egy oldalt a Tanulás fülön, és nőni fog a keret.</p>')+
+  '</div>';
+  return h;
+}
+
+/* =========================================================================
+   TANULÁS
+   ========================================================================= */
+const MIMES = ['image/jpeg','image/png','image/gif','image/webp'];
+function subjectChoices(){
+  const day = nextSchoolDay();
+  const list = (fam.timetable[day] || []).slice();
+  upcomingTests().forEach(t => { if(list.indexOf(t.subject) < 0) list.push(t.subject); });
+  return list.filter(Boolean);
+}
+function screenStudy(){
+  const d = day();
+  if(!d) return '<div class="card center"><h2>Előbb indítsd el a napot</h2><p class="muted small">A Ma fülön állítsd be, mennyit játszanál. Utána jöhet a tanulás.</p></div>';
+  const f = fuel();
+  const room = Math.max(0, fam.settings.cap - f.earned);
+  const chosen = study.subject;
+  const opts = subjectChoices();
+  let h = '';
+  if(study.error) h += '<div class="err" style="margin-bottom:12px">'+esc(study.error)+'</div>';
+
+  h += '<div class="card"><h3>Miből tanulsz?</h3><div class="row wrap">'+
+    opts.map(s => '<button class="btn small'+(chosen===s?' primary':'')+'" data-sub="'+esc(s)+'">'+esc(s)+'</button>').join('')+
+    '<button class="btn small'+(chosen==='__other'?' primary':'')+'" data-sub="__other">Egyéb&hellip;</button></div>'+
+    (opts.length ? '' : '<p class="tiny muted" style="margin:10px 0 0">Nincs órarend rögzítve, ezért csak az Egyéb van. A szabályoknál lehet órarendet megadni.</p>')+
+    (chosen === '__other' ? '<div style="margin-top:10px"><label class="f" for="sub-custom">Tantárgy neve</label><input id="sub-custom" value="'+esc(study.custom)+'" placeholder="pl. Földrajz" autocomplete="off"></div>' : '')+
+  '</div>';
+
+  h += '<div class="card"><h3>Az oldal, amit tanulsz</h3>'+
+    '<input type="file" id="photo" accept="image/*" capture="environment">'+
+    (study.b64 ? '<div class="row" style="margin-top:12px"><img src="data:'+esc(study.mime)+';base64,'+study.b64+'" alt="A kiválasztott oldal előnézete" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><span class="small muted grow">Megvan. A kikérdezés alatt a képet nem fogod látni.</span></div>' : '')+
+  '</div>';
+
+  const ready = !!study.b64 && !!currentSubject();
+  h += '<button class="btn primary" id="gen"'+(ready && !study.busy ? '' : ' disabled')+'>'+
+       (study.busy ? '<span class="spin"></span>Kérdések készítése&hellip;' : 'Kérdések készítése')+'</button>';
+
+  h += '<div class="card quiet" style="margin-top:14px"><h3>Mi jár érte</h3>'+
+    '<p class="small muted" style="margin:0">Minden jó válasz <b>'+fam.settings.perCorrect+'</b> perc. '+
+    'Legalább <b>'+fam.settings.minCorrect+'</b> jó válasz kell, alatta nulla. '+
+    'Ma még <b>'+room+'</b> perc fér bele a napi plafonba.<br>'+
+    'Kérdésenként '+fam.settings.secs+' másodperc, visszalépés nincs.</p></div>';
+  return h;
+}
+function currentSubject(){
+  return study.subject === '__other' ? study.custom.trim() : study.subject;
+}
+function readFile(file){
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result).split(',')[1] || '');
+    r.onerror = () => rej(new Error('read'));
+    r.readAsDataURL(file);
+  });
+}
+async function makeQuestions(b64, mime, subject, n){
+  const text =
+    'Ez egy '+subject+' tankönyv- vagy füzetoldal fotója. Készíts '+n+' feleletválasztós kérdést KIZÁRÓLAG az oldalon szereplő tartalomból, magyarul. A kérdések a megértést mérjék, ne szó szerinti visszakeresést. Minden kérdéshez 4 válasz, pontosan egy jó, a rosszak legyenek hihetőek.\n'+
+    'Csak JSON-t adj vissza, semmi mást, semmi markdown:\n'+
+    '{"tema":"az oldal témája 3-5 szóban","kerdesek":[{"k":"kérdés","v":["a","b","c","d"],"j":0,"m":"egymondatos magyarázat"}]}';
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens:1000,
+      messages:[{role:'user', content:[
+        {type:'image', source:{type:'base64', media_type:mime, data:b64}},
+        {type:'text', text}
+      ]}]
+    })
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  const raw = (data.content || []).filter(b => b && b.type === 'text').map(b => b.text).join('');
+  const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const a = cleaned.indexOf('{'), z = cleaned.lastIndexOf('}');
+  if(a < 0 || z <= a) throw new Error('parse');
+  const obj = JSON.parse(cleaned.slice(a, z + 1));
+  const qs = (obj.kerdesek || []).filter(q =>
+    q && typeof q.k === 'string' && q.k.trim() &&
+    Array.isArray(q.v) && q.v.length === 4 &&
+    Number.isInteger(q.j) && q.j >= 0 && q.j < 4
+  ).slice(0, n);
+  if(!qs.length) throw new Error('empty');
+  return {topic: String(obj.tema || '').trim().slice(0, 60), qs};
+}
+
+/* =========================================================================
+   KIKÉRDEZÉS — a kép nem látszik, óra ketyeg, visszalépés nincs
+   ========================================================================= */
+function startQuiz(topic, qs, subject){
+  quiz = {subject, topic, qs, i:0, picked:null, correct:0, done:false, left:fam.settings.secs, timer:null};
+  study.b64 = null; study.mime = null; study.file = null;
+  render();
+}
+function stopTimer(){ if(quiz && quiz.timer){ clearInterval(quiz.timer); quiz.timer = null; } }
+function startTimer(){
+  stopTimer();
+  quiz.left = fam.settings.secs;
+  paintTimer();
+  quiz.timer = setInterval(() => {
+    quiz.left--;
+    if(quiz.left <= 0){ stopTimer(); pick(-1); return; }
+    paintTimer();
+  }, 1000);
+}
+function paintTimer(){
+  const bar = document.getElementById('tbar-i'), lab = document.getElementById('tleft');
+  if(!bar || !lab) return;
+  const pct = clamp(quiz.left / fam.settings.secs * 100, 0, 100);
+  bar.style.width = pct + '%';
+  bar.className = quiz.left <= 5 ? 'warn' : '';
+  lab.textContent = quiz.left + ' mp';
+}
+function pick(i){
+  stopTimer();
+  quiz.picked = i;
+  if(i === quiz.qs[quiz.i].j) quiz.correct++;
+  render();
+}
+function nextQ(){
+  if(quiz.i + 1 >= quiz.qs.length){ finishQuiz(); return; }
+  quiz.i++; quiz.picked = null; render();
+}
+async function finishQuiz(){
+  stopTimer();
+  const s = fam.settings;
+  const d = fam.days[todayKey()];
+  let minutes = quiz.correct >= s.minCorrect ? quiz.correct * s.perCorrect : 0;
+  const room = Math.max(0, s.cap - (d.earned || 0));
+  minutes = Math.min(minutes, room);
+  d.earned = (d.earned || 0) + minutes;
+  d.sessions = d.sessions || [];
+  d.sessions.push({type:'study', subject:quiz.subject, topic:quiz.topic, correct:quiz.correct, tot:quiz.qs.length, minutes, time:hhmm()});
+  quiz.done = true; quiz.gained = minutes; quiz.capped = (quiz.correct >= s.minCorrect && minutes < quiz.correct * s.perCorrect);
+  await saveFam({days: fam.days});
+  render();
+}
+function screenQuiz(){
+  const s = fam.settings;
+  if(quiz.done){
+    const ok = quiz.gained > 0;
+    return '<div class="card center">'+
+      '<h2>'+(ok ? 'Megvan a plusz idő' : 'Ez most nem jött össze')+'</h2>'+
+      '<p class="num" style="font-size:64px;color:'+(ok?'var(--ok)':'var(--bad)')+';margin:10px 0 4px">'+(ok?'+'+quiz.gained:'0')+'</p>'+
+      '<p class="muted small">'+quiz.correct+'/'+quiz.qs.length+' jó válasz &middot; '+esc(quiz.topic || quiz.subject)+'</p>'+
+      (ok ? '' : '<p class="small" style="margin-top:10px">Legalább '+s.minCorrect+' jó válasz kell. Olvasd át még egyszer az oldalt, és fotózd le újra.</p>')+
+      (quiz.capped ? '<p class="tiny muted">A napi plafont elérted, ezért kevesebb jött be.</p>' : '')+
+      '<p class="tiny muted">Ez a kör bekerült a naplóba.</p>'+
+      '<div class="row" style="margin-top:14px"><button class="btn grow" id="q-again">Új oldal</button><button class="btn primary grow" id="q-today">Vissza a Ma-ra</button></div>'+
+    '</div>';
+  }
+  const q = quiz.qs[quiz.i];
+  const answered = quiz.picked !== null;
+  let h = '<div class="card">'+
+    '<div class="qhead"><span class="pill">'+(quiz.i+1)+' / '+quiz.qs.length+'</span>'+
+    '<span class="pill fuel" id="tleft">'+quiz.left+' mp</span></div>'+
+    '<div class="tbar"><i id="tbar-i"></i></div>'+
+    '<p class="q">'+esc(q.k)+'</p>';
+  const letters = ['A','B','C','D'];
+  q.v.forEach((v, i) => {
+    let cls = 'opt';
+    if(answered){
+      if(i === q.j) cls += ' good';
+      else if(i === quiz.picked) cls += ' wrong';
+    }
+    h += '<button class="'+cls+'" data-opt="'+i+'"'+(answered?' disabled':'')+'><b>'+letters[i]+'</b>'+esc(v)+'</button>';
+  });
+  if(answered){
+    const good = quiz.picked === q.j;
+    h += '<p class="why">'+(quiz.picked === -1 ? '<b style="color:var(--bad)">Lejárt az idő.</b> ' : good ? '<b style="color:var(--ok)">Jó.</b> ' : '<b style="color:var(--bad)">Nem jó.</b> ')+esc(q.m || '')+'</p>'+
+      '<button class="btn primary" id="q-next">'+(quiz.i + 1 >= quiz.qs.length ? 'Kiértékelés' : 'Következő kérdés')+'</button>';
+  }else{
+    h += '<p class="tiny muted center" style="margin:14px 0 0">A válasz végleges, visszalépés nincs.</p>';
+  }
+  return h + '</div>';
+}
+
+/* =========================================================================
+   JÁTÉK
+   ========================================================================= */
+function persistPlay(){
+  if(!play) return rawSet(PLAY_KEY, null, false);
+  return rawSet(PLAY_KEY, {game:play.game, startedAt:play.startedAt, committed:play.committed, dayKey:play.dayKey}, false);
+}
+async function resumePlay(){
+  const p = await rawGet(PLAY_KEY, false);
+  if(!p || p.dayKey !== todayKey() || !fam.days[p.dayKey]){ await rawSet(PLAY_KEY, null, false); return; }
+  play = {game:p.game, startedAt:p.startedAt, committed:p.committed || 0, dayKey:p.dayKey, timer:null};
+  play.timer = setInterval(playTick, 1000);
+  playTick();
+}
+function startPlay(game){
+  play = {game, startedAt:Date.now(), committed:0, dayKey:todayKey(), timer:null};
+  persistPlay();
+  play.timer = setInterval(playTick, 1000);
+  render();
+}
+function playLeft(){
+  const d = fam.days[play.dayKey];
+  if(!d) return 0;
+  return Math.max(0, (d.base||0) + (d.earned||0) - (d.played||0));
+}
+async function playTick(){
+  if(!play) return;
+  const d = fam.days[play.dayKey];
+  if(!d){ await stopPlay(false); return; }
+  const mins = Math.floor((Date.now() - play.startedAt)/60000);
+  if(mins > play.committed){
+    d.played = (d.played||0) + (mins - play.committed);
+    play.committed = mins;
+    await saveFam({days: fam.days});
+    persistPlay();
+  }
+  const left = playLeft();
+  if(left <= 0){ await stopPlay(true); return; }
+  paintPlay(left);
+}
+function paintPlay(left){
+  const n = document.getElementById('p-num');
+  if(!n) return;
+  n.textContent = left;
+  const seg = document.getElementById('p-seg');
+  if(seg){ const d = fam.days[play.dayKey]; seg.outerHTML = segHtml(left, (d.base||0)+(d.earned||0)).replace('class="seg"','class="seg" id="p-seg"'); }
+}
+async function stopPlay(auto){
+  if(!play) return;
+  clearInterval(play.timer);
+  const p = play; play = null;
+  const d = fam.days[p.dayKey];
+  const mins = Math.floor((Date.now() - p.startedAt)/60000);
+  if(d){
+    if(mins > p.committed) d.played = (d.played||0) + (mins - p.committed);
+    if(mins > 0){
+      d.sessions = d.sessions || [];
+      d.sessions.push({type:'play', game:p.game, minutes:mins, time:hhmm(new Date(p.startedAt))});
+    }
+    await saveFam({days: fam.days});
+  }
+  await rawSet(PLAY_KEY, null, false);
+  if(auto) flash = {kind:'note', text:'Elfogyott a keret, a kör leállt. Tanulj, ha többet szeretnél.'};
+  render();
+}
+function screenPlay(){
+  const d = day();
+  if(!d) return '<div class="card center"><h2>Előbb indítsd el a napot</h2><p class="muted small">A Ma fülön állítsd be, mennyit játszanál.</p></div>';
+  const f = fuel();
+  const note = '<div class="note">A böngésző nem tudja tényleg letiltani a játékokat &mdash; ez itt a becsületkassza. Élesben az Android réteg zárol (UsageStatsManager + overlay + foreground service).</div>';
+  if(play){
+    const left = playLeft();
+    return '<div class="fuel"><span class="lbl">Fut &middot; '+esc(play.game)+'</span>'+
+      '<span class="num" id="p-num">'+left+'</span><span class="unit">perc van hátra</span>'+
+      segHtml(left, (d.base||0)+(d.earned||0)).replace('class="seg"','class="seg" id="p-seg"')+
+      '<button class="btn" id="p-stop" style="margin-top:6px">Leállítás</button></div>'+
+      '<p class="tiny muted center">Nullánál magától megáll.</p>' + note;
+  }
+  let h = '<div class="card"><div class="spread"><h3 style="margin:0">Zárolt játékok</h3>'+
+    '<span class="pill '+(f.left>0?'fuel':'bad')+'">'+f.left+' perc</span></div>';
+  if(!fam.games.length){
+    h += '<p class="muted small" style="margin:12px 0 0">Nincs felvéve játék. A szabályoknál lehet listát megadni.</p>';
+  }else{
+    h += fam.games.map(g =>
+      '<div class="item'+(f.left>0?'':' locked')+'"><span class="grow">'+esc(g)+'</span>'+
+      (f.left>0 ? '<button class="btn small primary" data-game="'+esc(g)+'">Indítás</button>' : '<span class="pill bad">zárolva</span>')+
+      '</div>').join('');
+  }
+  h += '</div>';
+  if(f.left <= 0) h += '<div class="card quiet center"><h2>Elfogyott a keret</h2><p class="muted small" style="margin:0">Fotózz le egy oldalt a Tanulás fülön. Minden jó válasz '+fam.settings.perCorrect+' perc.</p></div>';
+  return h + note;
+}
+
+/* =========================================================================
+   NAPLÓ (elmúlt 7 nap)
+   ========================================================================= */
+function logHtml(){
+  const keys = [];
+  for(let i=0; i<7; i++){ const t = new Date(); t.setDate(t.getDate()-i); keys.push(todayKey(t)); }
+  const rows = keys.map(k => {
+    const d = fam.days[k];
+    if(!d) return '<div class="card quiet"><div class="spread"><h2>'+niceDate(k)+'</h2><span class="pill">nem indult el</span></div></div>';
+    const ss = (d.sessions||[]).slice().reverse();
+    const studyMin = ss.filter(s => s.type==='study').reduce((a,s) => a + (s.minutes||0), 0);
+    return '<div class="card"><div class="spread"><h2>'+niceDate(k)+'</h2>'+
+      '<span><span class="pill fuel">'+(d.played||0)+' perc játék</span> <span class="pill ok">+'+studyMin+'</span></span></div>'+
+      '<p class="tiny muted" style="margin:6px 0 10px">alap '+(d.base||0)+' &middot; kitanult '+(d.earned||0)+' &middot; maradt '+Math.max(0,(d.base||0)+(d.earned||0)-(d.played||0))+'</p>'+
+      (ss.length ? ss.map(sessionHtml).join('') : '<p class="muted small" style="margin:0">Nem történt semmi.</p>')+
+    '</div>';
+  });
+  return rows.join('');
+}
+function screenLog(){
+  let h = '';
+  if(device.role === 'parent'){
+    h += '<div class="row" style="margin-bottom:12px"><button class="btn small" id="refresh">Frissítés</button>'+
+      '<span class="small muted grow">'+(fam.paired ? esc(fam.childName || 'Gyerek')+' eszköze párosítva' : 'Még nincs párosítva')+'</span></div>';
+  }
+  return h + logHtml();
+}
+
+/* =========================================================================
+   SZABÁLYOK
+   ========================================================================= */
+function pinNeeded(){ return !!(device.pin) && !unlocked; }
+function screenPin(){
+  return '<div class="card center"><h2>Zárolt</h2><p class="muted small">Add meg a PIN-t a szabályok megnyitásához.</p>'+
+    '<input id="pin-in" inputmode="numeric" maxlength="6" placeholder="••••" style="text-align:center;letter-spacing:.3em;font-size:22px">'+
+    '<button class="btn primary" id="pin-go" style="margin-top:10px">Feloldás</button></div>';
+}
+function screenRules(){
+  if(pinNeeded()) return screenPin();
+  const s = fam.settings;
+  let h = '';
+
+  if(device.role === 'parent'){
+    h += '<div class="card">'+
+      (fam.paired
+        ? '<div class="spread"><h2>Párosítva</h2><span class="pill ok">'+esc(fam.childName || 'Gyerek')+'</span></div>'+
+          '<p class="muted small" style="margin:8px 0 0">A gyerek eszközéről érkeznek a naplóbejegyzések.</p>'
+        : '<h2>Párosító kód</h2><p class="muted small">Írd be a gyerek eszközén a &bdquo;Van kódom&rdquo; menüben.</p>'+
+          '<p class="code center">'+esc(device.code)+'</p>')+
+      '<button class="btn" id="refresh" style="margin-top:12px">Frissítés</button></div>';
+  }
+
+  if(device.role === 'solo') h += '<h3 style="margin:18px 0 10px">Elmúlt 7 nap</h3>' + logHtml();
+
+  h += '<div class="card"><h3>Szabályok</h3><div class="grid2">'+
+    numField('base','Alapkeret (perc)', s.base)+
+    numField('cap','Napi plafon (perc)', s.cap)+
+    numField('perCorrect','Perc / jó válasz', s.perCorrect)+
+    numField('minCorrect','Minimum jó válasz', s.minCorrect)+
+    numField('qCount','Kérdés / kör', s.qCount)+
+    numField('secs','Másodperc / kérdés', s.secs)+
+  '</div><button class="btn primary" id="save-set" style="margin-top:12px">Szabályok mentése</button>'+
+  '<p class="tiny muted" style="margin:10px 0 0">A minimum alatti körért nulla perc jár, így nem éri meg üres oldalt fotózni.</p></div>';
+
+  h += '<div class="card"><h3>Órarend</h3><p class="tiny muted" style="margin:-4px 0 10px">Tantárgyak vesszővel. Ebből ajánlom fel a tanulnivalót.</p>'+
+    [[1,'Hétfő'],[2,'Kedd'],[3,'Szerda'],[4,'Csütörtök'],[5,'Péntek']].map(([n,label]) =>
+      '<div style="margin-bottom:8px"><label class="f" for="tt-'+n+'">'+label+'</label>'+
+      '<input id="tt-'+n+'" value="'+esc((fam.timetable[n]||[]).join(', '))+'" placeholder="Matek, Nyelvtan"></div>').join('')+
+    '<button class="btn primary" id="save-tt">Órarend mentése</button></div>';
+
+  h += '<div class="card"><h3>Zárolt játékok</h3>'+
+    (fam.games.length ? fam.games.map((g,i) =>
+      '<div class="item"><span class="grow">'+esc(g)+'</span><button class="btn small danger" data-rmgame="'+i+'">Törlés</button></div>').join('')
+      : '<p class="muted small">Üres a lista.</p>')+
+    '<div class="row" style="margin-top:12px"><input id="new-game" class="grow" placeholder="Játék neve" autocomplete="off">'+
+    '<button class="btn small primary" id="add-game">Hozzáad</button></div></div>';
+
+  if(device.role === 'solo'){
+    h += '<div class="card"><h3>PIN</h3><p class="tiny muted" style="margin:-4px 0 10px">'+
+      (device.pin ? 'Most be van állítva. Üresen mentve törlöd.' : 'Nincs beállítva. Hevület közben jól jön.')+'</p>'+
+      '<input id="solo-pin" inputmode="numeric" maxlength="6" placeholder="4-6 számjegy" autocomplete="off">'+
+      '<button class="btn" id="save-pin" style="margin-top:10px">PIN mentése</button></div>';
+  }
+  if(device.role !== 'child'){
+    h += '<button class="btn ghost danger" id="wipe">Eszköz leválasztása</button>'+
+      '<p class="tiny muted center" style="margin-top:8px">A helyi beállítás törlődik, a család rekordja megmarad.</p>';
+  }
+  return h;
+}
+function numField(id, label, val){
+  return '<div><label class="f" for="s-'+id+'">'+label+'</label><input id="s-'+id+'" type="number" inputmode="numeric" min="0" value="'+val+'"></div>';
+}
+
+/* =========================================================================
+   ESEMÉNYEK
+   ========================================================================= */
+function on(id, ev, fn){ const el = document.getElementById(id); if(el) el[ev] = fn; }
+function bind(){
+  /* --- Ma --- */
+  on('startday','onclick', async () => {
+    const max = fam.settings.base;
+    const v = clamp(int(document.getElementById('dbase').value, max), 0, max);
+    fam.days[todayKey()] = {started:new Date().toISOString(), base:v, earned:0, played:0, sessions:[]};
+    await saveFam({days: fam.days});
+    render();
+  });
+  on('t-add','onclick', async () => {
+    const sub = document.getElementById('t-sub').value.trim();
+    const date = document.getElementById('t-date').value;
+    if(!sub || !date){ flash = {kind:'err', text:'Tantárgy és dátum is kell. Ha nincs dolgozat, nyomd a Nincs gombot.'}; render(); return; }
+    fam.tests = (fam.tests||[]).concat([{subject:sub, date}]);
+    await saveFam({tests: fam.tests, lastTestAsk: weekKey()});
+    render();
+  });
+  on('t-skip','onclick', async () => { await saveFam({lastTestAsk: weekKey()}); render(); });
+
+  /* --- Tanulás --- */
+  document.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => {
+    study.subject = b.dataset.sub; study.error = ''; render();
+  });
+  const custom = document.getElementById('sub-custom');
+  if(custom){
+    custom.oninput = () => {
+      study.custom = custom.value;
+      const g = document.getElementById('gen');
+      if(g) g.disabled = !(study.b64 && currentSubject());
+    };
+  }
+  on('photo','onchange', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(MIMES.indexOf(file.type) < 0){
+      study.error = 'Ezt a képformátumot nem tudom feldolgozni. Készíts JPG vagy PNG fotót.';
+      study.b64 = null; render(); return;
+    }
+    try{
+      study.b64 = await readFile(file);
+      study.mime = file.type; study.error = '';
+    }catch(err){ study.error = 'Nem sikerült beolvasni a fotót. Próbáld újra.'; study.b64 = null; }
+    render();
+  });
+  on('gen','onclick', async () => {
+    const subject = currentSubject();
+    if(!subject || !study.b64) return;
+    study.busy = true; study.error = ''; render();
+    try{
+      const out = await makeQuestions(study.b64, study.mime, subject, fam.settings.qCount);
+      study.busy = false;
+      startQuiz(out.topic, out.qs, subject);
+    }catch(err){
+      console.error(err);
+      study.busy = false;
+      study.error = /HTTP|Failed|NetworkError|fetch/i.test(String(err && err.message))
+        ? 'Nem érte el a kikérdezőt. Nézd meg a hálózatot, és próbáld újra.'
+        : 'A fotó nem volt olvasható. Készíts élesebb képet, jó fényben, hogy az egész oldal beleférjen, és próbáld újra.';
+      render();
+    }
+  });
+
+  /* --- Kikérdezés --- */
+  if(quiz && !quiz.done){
+    document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => pick(int(b.dataset.opt, -1)));
+    on('q-next','onclick', nextQ);
+    if(quiz.picked === null) startTimer();
+  }
+  on('q-again','onclick', () => { quiz = null; study.error = ''; render(); });
+  on('q-today','onclick', () => { quiz = null; tab = 'today'; render(); });
+
+  /* --- Játék --- */
+  document.querySelectorAll('[data-game]').forEach(b => b.onclick = () => startPlay(b.dataset.game));
+  on('p-stop','onclick', () => stopPlay(false));
+
+  /* --- Napló / Szabályok --- */
+  on('refresh','onclick', async () => { await reloadFam(); flash = {kind:'note', text:'Frissítve.'}; render(); });
+  on('pin-go','onclick', () => {
+    const v = document.getElementById('pin-in').value.trim();
+    if(v === device.pin){ unlocked = true; render(); }
+    else { flash = {kind:'err', text:'Nem stimmel a PIN. Próbáld újra.'}; render(); }
+  });
+  on('save-set','onclick', async () => {
+    const g = id => int(document.getElementById('s-'+id).value, fam.settings[id]);
+    const next = {
+      base: clamp(g('base'),0,600), cap: clamp(g('cap'),0,600),
+      perCorrect: clamp(g('perCorrect'),0,60), minCorrect: clamp(g('minCorrect'),0,50),
+      qCount: clamp(g('qCount'),1,20), secs: clamp(g('secs'),5,300)
+    };
+    if(next.minCorrect > next.qCount){
+      flash = {kind:'err', text:'A minimum jó válasz nem lehet több a kérdésszámnál. Csökkentsd, vagy adj több kérdést.'};
+      render(); return;
+    }
+    await saveFam({settings: next});
+    flash = {kind:'note', text:'Mentve.'}; render();
+  });
+  on('save-tt','onclick', async () => {
+    const tt = {};
+    for(let d=1; d<=5; d++){
+      tt[d] = document.getElementById('tt-'+d).value.split(',').map(x => x.trim()).filter(Boolean);
+    }
+    await saveFam({timetable: tt});
+    flash = {kind:'note', text:'Órarend mentve.'}; render();
+  });
+  document.querySelectorAll('[data-rmgame]').forEach(b => b.onclick = async () => {
+    const i = int(b.dataset.rmgame, -1);
+    if(i < 0) return;
+    const g = fam.games.slice(); g.splice(i,1);
+    await saveFam({games: g}); render();
+  });
+  on('add-game','onclick', async () => {
+    const el = document.getElementById('new-game');
+    const v = el.value.trim();
+    if(!v) return;
+    await saveFam({games: fam.games.concat([v])});
+    render();
+  });
+  on('save-pin','onclick', async () => {
+    const v = document.getElementById('solo-pin').value.trim();
+    if(v && !/^\d{4,6}$/.test(v)){ flash = {kind:'err', text:'A PIN 4-6 számjegy legyen, vagy hagyd üresen a törléshez.'}; render(); return; }
+    device.pin = v;
+    await rawSet(DEVICE_KEY, device, false);
+    unlocked = true;
+    flash = {kind:'note', text: v ? 'PIN beállítva.' : 'PIN törölve.'}; render();
+  });
+  on('wipe','onclick', async () => {
+    if(!confirm('Leválasztod ezt az eszközt? A helyi beállítás törlődik.')) return;
+    if(play){ clearInterval(play.timer); play = null; }
+    await rawSet(PLAY_KEY, null, false);
+    await rawSet(DEVICE_KEY, null, false);
+    device = null; fam = null; unlocked = false; tab = 'today';
+    render();
+  });
+}
+</script>
+</body>
+</html>
