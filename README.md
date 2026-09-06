@@ -63,6 +63,8 @@ elindul, a háttérben fut, és tényleg lezárja a játékot. A felület ugyane
 `kredit.html`, WebView-ban — a build másolja be, tehát egy forrás van, nem kettő.
 A részletek: [`android/README.md`](android/README.md).
 
+**Kész APK:** https://github.com/davidlipcs/Telefon-id-/releases/download/apk-latest/app-debug.apk
+
 Röviden: a figyelő kisegítő szolgáltatásként fut (a rendszer indítja
 bekapcsoláskor, nem lövi ki), az ablakváltásokból tudja, melyik app van
 előtérben, percenként vonja a keretet, nullánál kiteszi az appot az előtérből és
@@ -74,9 +76,9 @@ Hálózati engedélye az appnak nincs.
 
 - **A böngésző nem tud játékot blokkolni.** Ehhez az `android/` mappában lévő
   natív app kell. A HTML önmagában becsületkassza.
-- Az Android projekt **nincs lefordítva** — ahol készült, ott nincs Android SDK.
-  A forrás teljes, az erőforrás-hivatkozások ellenőrizve, de az első fordítás
-  hozhat olyan hibát, amit csak a fordító talál meg.
+- Az Android app fordítása GitHub Actionsben történik, mert ahol készült, ott
+  nincs Android SDK. Minden `android/`-ot vagy `kredit.html`-t érintő push
+  újrafordítja és frissíti a letölthető APK-t.
 - **A párosítás itt megosztott tárolón megy.** Élesben Firebase Auth + Firestore.
 - Ha nincs `window.storage`, a fájl `localStorage`-ra esik vissza. Ekkor a
   „megosztott" tár is csak az adott eszközön él, vagyis a szülő–gyerek párosítás

@@ -46,7 +46,21 @@ beállításaiban, a zárolás megszűnik. Ezt megelőzni csak eszközgazda-jogo
 (Device Owner) lehet, amihez gyári visszaállítás és `adb`-s kiépítés kell.
 Kimutatni viszont ki tudjuk — a napló megőrzi.
 
-## Fordítás
+## Letöltés
+
+Kész APK, közvetlen link — telefonon is megnyitható:
+
+**https://github.com/davidlipcs/Telefon-id-/releases/download/apk-latest/app-debug.apk**
+
+Ez a link mindig a legutóbbi buildre mutat: minden `android/`-ot vagy
+`kredit.html`-t érintő push újrafordítja és frissíti.
+
+Telepítés: koppints a letöltött fájlra. Android rá fog kérdezni, hogy engedélyezed-e
+az ismeretlen forrásból való telepítést ennek a böngészőnek — ez azért van, mert az
+APK nem a Play áruházból jön. Első indításkor az app egy csíkban végigvezet a
+három beállítási lépésen.
+
+## Fordítás magadnak
 
 Android SDK kell hozzá (Android Studio). A repó gyökeréből:
 
@@ -74,8 +88,9 @@ Vagy: Android Studio → *Open* → az `android` mappa → *Run*.
 | `MainActivity.kt` | WebView + a beállítás végigvezetése |
 | `ParentActivity.kt` | Appválasztó, védelmi állapot, napló — a webes PIN mögött |
 
-## Ami itt nem készült el
+## Fordítás CI-ben
 
-A projekt **nincs lefordítva** — ahol írtam, ott nincs Android SDK. A
-forráskód teljes és az erőforrás-hivatkozások ellenőrizve vannak, de az első
-`assembleDebug` hozhat olyan hibát, amit csak fordító talál meg.
+Ahol az app készült, ott nincs Android SDK, ezért a fordítás GitHub Actionsben
+történik: [`.github/workflows/android.yml`](../.github/workflows/android.yml).
+A futás feltölti az APK-t, és frissíti az `apk-latest` kiadást, hogy a fenti link
+állandó maradjon.
