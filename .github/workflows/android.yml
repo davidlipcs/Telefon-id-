@@ -1,0 +1,61 @@
+name: Android APK
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+    paths: ["android/**", "kredit.html", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle gyorsítótár
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('android/**/*.gradle.kts', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: SDK licencek
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+
+      - name: Fordítás
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: APK feltöltése a futáshoz
+        uses: actions/upload-artifact@v4
+        with:
+          name: kredit-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      # Állandó, közvetlen letöltési link: mindig ugyanaz a kiadás frissül.
+      - name: Kiadás frissítése
+        if: github.ref_name == 'main' || startsWith(github.ref_name, 'claude/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --yes --cleanup-tag || true
+          gh release create apk-latest \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            --title "Kredit APK" \
+            --notes "Legutóbbi debug build a(z) \`${{ github.ref_name }}\` ágról ($(date -u '+%Y-%m-%d %H:%M') UTC)." \
+            --prerelease
